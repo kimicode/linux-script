@@ -1,0 +1,159 @@
+# Script: 5_linux_config_file
+
+# @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+# Function
+# $1, config file path
+f_do_config_file_change() {
+  # variable
+  config_file=$1
+
+  case "$config_file" in
+# ################## CASE 1
+  "/etc/sysctl.conf" )
+         #echo "This is sysctl.conf"
+#------------
+cat <<EOF >> $config_file
+
+# for Oracle database
+kernel.shmall = 2097152
+kernel.shmmax = 2147483648
+kernel.shmmni = 4096
+kernel.sem = 250 32000 100 128
+fs.file-max = 65536
+net.ipv4.ip_local_port_range = 1024 65000
+net.core.rmem_default = 262144
+net.core.rmem_max = 262144
+net.core.wmem_default = 262144
+net.core.wmem_max = 262144
+
+EOF
+
+#------------
+         echo "f_do_config_file_change, File: $config_file, DONE." 
+
+         echo "@@@ Active modification, Immediate"
+         echo "-----------"
+         sysctl -p
+         echo "-----------"
+         echo ""
+
+  ;;
+
+# ################## CASE 2
+  "/etc/pam.d/login" )
+         #echo "This is login"
+#------------
+cat <<EOF >> $config_file
+
+# For Oracle database
+
+session        required        /lib/security/pam_limits.so
+session        required        pam_limits.so
+
+EOF
+
+#------------
+         echo "f_do_config_file_change, File: $config_file, DONE." 
+
+  ;;
+
+# ################## CASE 3
+  "/etc/security/limits.conf" )
+         #echo "This is limits.conf"
+#------------
+cat <<EOF >> $config_file
+
+# For Oracle database
+
+*        soft        nproc        2047
+*        hard        nproc        16384
+*        soft        nofile       1024
+*        hard        nofile       65536
+
+EOF
+
+#------------
+         echo "f_do_config_file_change, File: $config_file, DONE." 
+
+  ;;
+
+# ################## CASE 4
+  "/etc/redhat-release" )
+         #echo "This is redhat-release"
+#------------
+cat <<EOF > $config_file
+redhat-4
+
+EOF
+
+#------------
+         echo "f_do_config_file_change, File: $config_file, DONE." 
+
+  ;;
+# ################## CASE 4
+  "/etc/hosts" )
+         #echo "This is hosts"
+
+         # variable
+         eth0_ip=`ifconfig eth0 | grep --color "inet addr" | cut -d: -f2 | cut -d ' ' -f1`
+#------------
+cat <<EOF > $config_file
+
+# for Oracle database
+# IPv4
+# Begin
+
+# Local:lo
+127.0.0.1 localhost
+
+# Public:eth0
+$eth0_ip `hostname`
+
+# PXE Server
+192.168.56.132 pxe-server
+
+# End
+
+# IPv6
+# Null records!!!
+
+EOF
+
+#------------
+         echo "f_do_config_file_change, File: $config_file, DONE." 
+
+  ;;
+
+
+  esac
+
+}
+
+# @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+
+# variable
+dir_backup=/backup
+
+# list of file, which can config linux kernel
+list_config_file="/etc/sysctl.conf /etc/pam.d/login /etc/security/limits.conf /etc/redhat-release /etc/hosts"
+
+# loop the list
+for item in $list_config_file
+do
+   echo "####################"
+   echo "File: $item"
+   echo "####################"
+
+   # do backup
+   cp -rf $item $dir_backup
+   echo "@@@ File: $item, has been BACKUP."
+
+   # do change
+   f_do_config_file_change $item
+   echo "@@@ File: $item, has been CHANGED."
+
+   echo ""
+
+done
+
+# @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@

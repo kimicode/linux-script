@@ -1,0 +1,398 @@
+# Script: 9_oracle_software_only
+
+# @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+# Function
+
+#-------------------------------
+# F: unzip input File
+f_unzip_file() {
+
+  #variable
+  file_full_path_unzip=$1
+  file_path_locate=$2
+
+  #relative variable
+  unzip_type=`echo $file_full_path_unzip | rev | cut -d'.' -f1 | rev`
+
+  #unzip file type
+  case "$unzip_type" in
+    "gz" )
+      echo "File: $file_full_path_unzip, Type: gz."
+      echo "----"
+      echo ""
+      
+      echo "@@@ do gz unzip"
+      echo "----"
+      gunzip $file_full_path_unzip
+      echo ""
+      
+      echo "----"
+      echo "@@@ do gz unzip, DONE"
+      echo ""
+
+    ;;
+    "tar" )
+      echo "File: $file_full_path_unzip, Type: tar."
+      echo "----"
+      echo ""
+      
+      echo "@@@ do tar unzip"
+      echo "----"
+      tar -xf $file_full_path_unzip
+      echo ""
+      
+      echo "----"
+      echo "@@@ do tar unzip, DONE"
+      echo ""
+
+      rm -rf $file_full_path_unzip
+      echo "----"
+      echo "@@@ remove source file, DONE"
+      echo ""
+
+    ;;
+    "cpio" )
+      echo "File: $file_full_path_unzip, Type: cpio."
+      echo "----"
+      echo ""
+      
+      echo "@@@ do cpio unzip"
+      echo "----"
+      cd $file_path_store && cpio -idmv < $file_full_path_unzip
+      echo ""
+      
+      echo "----"
+      echo "@@@ do cpio unzip, DONE"
+      echo ""
+
+      rm -rf $file_full_path_unzip
+      echo "----"
+      echo "@@@ remove source file, DONE"
+      echo ""
+
+    ;;
+    "zip" )
+      echo "File: $file_full_path_unzip, Type: zip."
+      echo "----"
+      echo ""
+      
+      echo "@@@ do zip unzip"
+      echo "----"
+      unzip -o $file_full_path_unzip -d $file_path_store
+      echo ""
+      
+      echo "----"
+      echo "@@@ do zip unzip, DONE"
+      echo ""
+
+      rm -rf $file_full_path_unzip
+      echo "----"
+      echo "@@@ remove source file, DONE"
+      echo ""
+
+    ;;
+
+  esac
+
+}
+
+#-------------------------------
+
+f_init_dir() {
+  #variable
+  #$1, dir_path
+  dir_path=$1
+
+  # do delete
+  if [ -d "$dir_path" ]
+  then
+        echo "------"
+        echo "Result:: directory $dir_path, EXSIST."
+
+        echo "------"
+        rm -rf $dir_path
+        echo "Result:: directory $dir_path, DELETE."
+  else
+        echo "------"
+        echo "Result:: directory $dir_path, is NOT EXSIST."
+  fi
+
+  # do create
+  mkdir -p $dir_path
+  echo "@@@ dir:$dir_path, has been CREATE."
+
+  chmod -R 777 $dir_path
+  echo "@@@ dir:$dir_path, has been CHANGE MODE."
+
+
+  echo ""
+
+}
+
+#-------------------------------
+
+#-------------------------------
+
+#-------------------------------
+
+#-------------------------------
+
+#-------------------------------
+
+#-------------------------------
+
+
+#-------------------------------
+
+# @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+# Variable
+
+# list of download file
+#file_path_downloads="ftp://192.168.56.132/oracle/database/10g/10201_database_linux_x86_64.cpio.gz ftp://192.168.56.132/oracle/database/10g/p8202632_10205_Linux-x86-64.zip"
+
+file_path_downloads="ftp://192.168.56.132/oracle/database/10g/10201_database_linux_x86_64.cpio.gz"
+
+# where to store medias (local)
+file_path_store="/software/oracle_media"
+
+# type list of media, zip type
+list_zip_type=""
+
+# @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+# Run
+
+# Init dir
+echo "###################"
+echo "INIT directory: $file_path_store"
+echo "###################"
+echo ""
+
+# do init
+f_init_dir $file_path_store
+
+
+# Download file to dir
+echo "###################"
+echo "Download Install Media"
+echo "###################"
+echo ""
+
+# do download
+for media in $file_path_downloads
+do
+        #analyze zip type of media
+        zip_type=`echo $media | rev | cut -d'.' -f1 | rev`
+        list_zip_type=$list_zip_type" "$zip_type
+
+        echo "***********"
+        echo "Medis: $media"
+        echo "Type: $zip_type"
+        echo "***********"
+        echo ""
+
+        #@@@ download media
+        echo -e "@@@ download begin:: \t"`date`
+        echo ""
+
+        wget -P $file_path_store $media
+
+        echo "------"
+        echo -e "@@@ download end:: \t"`date`
+        echo ""
+
+        echo "Result:: file $media, DOWNLOAD SUCCESSFUL."
+        echo ""
+
+done
+
+echo "@@@@@@@@@@@@@@@@@@@@@@@@@@@"
+echo "Download Directory, Current status:"
+echo "-------------"
+ls -ltr --time-style="+%Y-%m-%d %H:%M |" $file_path_store
+echo "@@@@@@@@@@@@@@@@@@@@@@@@@@@"
+
+# UNZIP media
+echo "###################"
+echo "UNZIP Download media"
+echo "###################"
+echo ""
+
+# variable
+# refresh every loop
+media_count=`ls -ltr --time-style="+%Y-%m-%d %H:%M |" $file_path_store | grep -v ^d | grep -v total | grep -v html | grep -v htm | cut -d'|' -f2 | grep --color "\." | wc -l`
+
+# check if the number is zero,means is ZIP File all unziped?
+until_loop_count=1
+
+# do unzip
+until [ $media_count -eq 0 ]
+do
+
+#--------------------------------------------
+
+#check if current zip type not in list_zip_type, then add it into list_zip_type
+#Add zip type into wait list
+
+#variable
+list_current_zip_type=`ls -ltr --time-style="+%Y-%m-%d %H:%M |" $file_path_store | grep -v ^d | grep -v total | grep -v html | grep -v htm | cut -d'|' -f2 | grep --color "\." | rev | cut -d'.' -f1 | rev`
+
+echo "%%%%%%%%%%%%%%%%%%%"
+echo "About UNZIP Type List"
+echo "%%%%%%%%%%%%%%%%%%%"
+
+echo "Base Data:"
+echo "Current ZIP Type in $file_path_store: $list_current_zip_type"
+echo "Zip Type in WAIT List: $list_zip_type"
+echo "------"
+echo ""
+
+for current_type in $list_current_zip_type
+do
+
+  #variable
+  #default, YES
+  bool_isExsist="yes"
+
+  for wait_type in $list_zip_type
+  do
+    if [ $current_type != $wait_type ]
+    then
+       #means, NOT EXSIST
+       bool_isExsist="no"
+
+    elif [ $current_type = $wait_type ]
+    then
+       #means, EXSIST
+       bool_isExsist="yes"
+    fi
+
+  done
+
+  if [ $bool_isExsist != "yes" ]
+  then
+     echo "------"
+     echo "@ $current_type is NOT in ZIP Type Wait List."
+     echo "@ #Current ZIP Type Wait List is: $list_zip_type"
+     echo "------"
+     list_zip_type=$list_zip_type" "$current_type
+     echo "@ $current_type has been ADD"
+     echo "------"
+     echo "@ $After Add, ZIP Type wait List is: $list_zip_type"
+     echo ""
+
+  fi
+
+done
+
+#--------------------------------------------
+
+   echo "%%%%%%%%%%%%%%%%%%%%%%%"
+   echo "Stil has media, need be unziped."
+   echo "Media Count: $media_count"
+   echo "UNTIL Loop:: $until_loop_count"
+   echo "%%%%%%%%%%%%%%%%%%%%%%%"
+
+   # check how many loops until run.
+   let until_loop_count=until_loop_count+1
+
+   echo "Types need be unzip: $list_zip_type"
+   echo ""
+
+   for type in $list_zip_type
+   do
+       echo "-----------"
+       echo "Type: $type"
+       echo "-----------"
+
+       list_file_type=`ls $file_path_store | grep "\.$type"`
+
+       #list same type file
+       for file in $list_file_type
+       do
+          ls -ltrd --time-style="+%Y-%m-%d %H:%M |" $file_path_store/$file
+
+       done
+
+       echo "@@@ @@@ @@@"
+       echo ""
+
+       #do unzip
+       for file in $list_file_type
+       do
+          echo "*********"
+          echo "unzip Current: $file"
+          echo "*********"
+          echo ""
+
+          f_unzip_file $file_path_store/$file $file_path_store
+          echo "------------"
+          echo "unzip SUCCESSFUL."
+          echo ""
+
+       done
+
+   done
+
+   # refresh media_count, for until end.
+   media_count=`ls -ltr --time-style="+%Y-%m-%d %H:%M |" $file_path_store | grep -v ^d | grep -v total | grep -v html | grep -v htm | cut -d'|' -f2 | grep --color "\." | wc -l`
+
+done
+
+# @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+# Create response file
+
+# file path
+ora_response_file=/script/oracle_enterprise_sw_only.rsp
+
+# support variable
+var_ora_base=`su - oracle -c "env | grep ORACLE_BASE" | cut -d'=' -f2`
+var_ora_home=`su - oracle -c "env | grep ORACLE_HOME" | cut -d'=' -f2`
+
+#-------------------------
+cat <<RESP > $ora_response_file
+RESPONSEFILE_VERSION=2.2.1.0.0
+UNIX_GROUP_NAME=oinstall
+FROM_LOCATION="$file_path_store/database/stage/products.xml"
+ORACLE_HOME=$var_ora_home
+ORACLE_HOME_NAME="Oracle_database_10g_HOME_1"
+TOPLEVEL_COMPONENT={"oracle.server","10.2.0.1.0"}
+DEINSTALL_LIST={"oracle.server","10.2.0.1.0"}
+SHOW_INSTALL_PROGRESS_PAGE=true
+RESTART_SYSTEM=true
+RESTART_REMOTE_SYSTEM=false
+ORACLE_HOSTNAME=`hostname`
+SHOW_END_OF_INSTALL_MSGS=false
+COMPONENT_LANGUAGES={"en","zh_CN"}
+INSTALL_TYPE="EE"
+s_nameForDBAGrp="dba"
+s_nameForOPERGrp="oper"
+n_configurationOption=3
+
+RESP
+#-------------------------
+echo "@@@ response file: $ora_response_file, CREATE."
+
+# @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+# Install Oracle software only by response file
+
+echo "===================="
+echo "Oracle database Silent INSTALL."
+echo "Resp file: $ora_response_file"
+echo "===================="
+
+echo ""
+echo "do Install."
+echo -e "Started: \t"`date`
+echo "---------------------"
+su - oracle -c "$file_path_store/database/runInstaller -silent -responseFile $ora_response_file"
+
+echo ""
+echo "---------------------"
+echo -e "Ended: \t"`date`
+echo ""
+
+echo "%%%%%%%%%%%%%%%%%%%%%"
+echo "Oracle database software only install, DONE."
+echo ""
+
+# @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@

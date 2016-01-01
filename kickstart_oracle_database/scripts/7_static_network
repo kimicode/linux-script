@@ -1,0 +1,145 @@
+# Script: 7_static_network
+
+# @@@@@@@@@@@@@@@@@@@@@@@
+# Function
+f_config_nic() {
+ #variable
+ # $1, nic name
+ nic_name=$1
+ config_file_current_nic=/etc/sysconfig/network-scripts/ifcfg-$nic
+
+ #record for a nic
+ #record_type=`cat $config_file_current_nic | grep "=" | cut -d'=' -f1`
+ record_type="BOOTPROTO ONBOOT IPADDR NETMASK GATEWAY"
+
+ #loop record_type
+ for item_type in $record_type
+ do
+      #echo "----------------"
+      #echo "Record: $item_type"
+      #echo "----------------"
+      f_nic_type $nic_name $item_type
+ done
+
+ #display result
+ echo ""
+ echo "$nic_name config file: $config_file_current_nic, has been CHANGE."
+
+}
+
+f_nic_type() {
+  #variable
+  # $1, nic name
+  # $2, nic config file record type
+  nic_name=$1
+  record_type=$2
+  config_file_current_nic=/etc/sysconfig/network-scripts/ifcfg-$nic_name
+
+  echo "================"
+  echo "Nic: $nic_name"
+  echo "Record: $record_type"
+  echo "Conf: $config_file_current_nic"
+  echo "================"
+
+# @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+  case "$record_type" in
+
+  # ---------------------CASE 1
+  "BOOTPROTO" )
+     #variable
+     old_proto=`cat $config_file_current_nic | grep "BOOTPROTO=" | cut -d'=' -f2`
+     
+     if [[ $old_proto != "" ]]
+     then
+       # do change
+       sed -i "s/BOOTPROTO=$old_proto/BOOTPROTO=static/" $config_file_current_nic
+     elif [[ $old_proto = "" ]]
+     then
+       echo "BOOTPROTO=static" >> $config_file_current_nic
+     fi
+  ;;
+  # ---------------------CASE 2
+  "ONBOOT" )
+     #variable
+     old_onboot=`cat $config_file_current_nic | grep "ONBOOT=" | cut -d'=' -f2`
+
+     if [[ $old_onboot != "" ]]
+     then
+       # do change
+       sed -i "s/ONBOOT=$old_onboot/ONBOOT=on/" $config_file_current_nic
+     else
+       echo "ONBOOT=on" >> $config_file_current_nic
+     fi
+  ;;
+  # ---------------------CASE 3
+  "IPADDR" )
+     #variable
+     old_ip=`cat $config_file_current_nic | grep "IPADDR=" | cut -d'=' -f2`
+     current_ip=`ifconfig $nic_name | grep --color "inet addr" | cut -d: -f2 | cut -d ' ' -f1`
+
+     if [[ $old_ip != "" ]]
+     then
+       # do change
+       sed -i "s/IPADDR=$old_ip/IPADDR=$current_ip/" $config_file_current_nic
+     else
+       echo "IPADDR=$current_ip" >> $config_file_current_nic
+     fi
+  ;;
+  # ---------------------CASE 4
+  "NETMASK" )
+     #variable
+     old_netmask=`cat $config_file_current_nic | grep "NETMASK=" | cut -d'=' -f2`
+
+     if [[ $old_netmask != "" ]]
+     then
+       # do change
+       sed -i "s/NETMASK=$old_netmask/NETMASK=255.255.255.0/" $config_file_current_nic
+     else
+       echo "NETMASK=255.255.255.0" >> $config_file_current_nic
+     fi
+  ;;
+  # ---------------------CASE 5
+  "GATEWAY" )
+     #variable
+     old_gateway=`cat $config_file_current_nic | grep "GATEWAY=" | cut -d'=' -f2`
+     current_gateway=`ifconfig $nic_name | grep "inet addr" | cut -d':' -f3 | cut -d' ' -f1 | sed 's/.255/.1/'`
+
+     if [[ $old_gateway != "" ]]
+     then
+       # do change
+       sed -i "s/GATEWAY=$old_gateway/GATEWAY=$current_gateway/" $config_file_current_nic
+     else
+       echo "GATEWAY=$current_gateway" >> $config_file_current_nic
+     fi
+  ;;
+
+  esac
+# @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+
+  echo "record change, DONE."
+  echo ""
+
+}
+
+# @@@@@@@@@@@@@@@@@@@@@@@
+
+# loop in Current NICs
+for nic in `ifconfig | grep "Link encap" | cut -d' ' -f1`
+do
+  # file path
+  config_file_current_nic=/etc/sysconfig/network-scripts/ifcfg-$nic
+
+  echo ""
+  echo "------------"
+  echo "Current NIC: $nic"
+  echo "Config file: $config_file_current_nic"
+  echo "------------"
+  echo ""
+
+  # do change
+  f_config_nic $nic
+
+  # result
+  echo "NIC: $nic, config DONE."
+
+done

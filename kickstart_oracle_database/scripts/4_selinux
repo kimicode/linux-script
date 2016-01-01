@@ -1,0 +1,44 @@
+# Script: 4_selinux
+
+config_file_selinux=/etc/selinux/config
+config_file_selinux_status=`cat $config_file_selinux | grep -v ^# | grep "SELINUX=" | cut -d'=' -f2`
+
+# @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+# Function: tune permissive or enforcing to disable
+f_tune2disable() {
+  # Variable
+  current_status=$1;
+  echo "Func f_tune2disable, got: $current_status."
+
+  search_str="SELINUX=$current_status"
+  echo "Func f_tune2disable, var search_str: $search_str."
+
+  # Do change
+  sed -i "s/$search_str/SELINUX=disabled/" $config_file_selinux
+  echo "File: $config_file_selinux, has been changed to disabled."  
+
+}
+
+# @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+
+if [ $config_file_selinux_status = "enforcing" -o $config_file_selinux_status = "permissive" ]
+then
+        case "$config_file_selinux_status" in
+          "enforcing" )
+            f_tune2disable "enforcing"
+          ;;
+
+          "permissive" )
+            f_tune2disable "permissive"
+          ;;
+        esac
+fi
+
+echo "@@@ SELINUX: $config_file_selinux, has been CHANGE."
+echo ""
+
+echo "Current SELINUX config file, CONTEXT:"
+echo "-----------------------"
+cat $config_file_selinux
+echo "-----------------------"
+echo ""
