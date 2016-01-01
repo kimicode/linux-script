@@ -7,7 +7,7 @@ var_ora_home=`su - oracle -c "env | grep ORACLE_HOME" | cut -d'=' -f2`
 response_file_instance=/script/oracle_instance.rsp
 
 var_ora_sid=`su - oracle -c "env | grep ORACLE_SID" | cut -d'=' -f2`
-var_password=oracle
+var_password="oracle"
 
 #@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 # create response file for instance
@@ -21,10 +21,10 @@ OPERATION_TYPE = "createDatabase"
 GDBNAME = "$var_ora_sid"
 SID = "$var_ora_sid"
 TEMPLATENAME = "New_Database.dbt"
-SYSPASSWORD = "$ora_password"
-SYSTEMPASSWORD = "$ora_password"
-SYSMANPASSWORD = "$ora_password"
-DBSNMPPASSWORD = "$ora_password"
+SYSPASSWORD = "$var_password"
+SYSTEMPASSWORD = "$var_password"
+SYSMANPASSWORD = "$var_password"
+DBSNMPPASSWORD = "$var_password"
 DATAFILEDESTINATION = "$var_ora_base/oradata"
 RECOVERYAREADESTINATION = "$var_ora_base/flash_recovery_area"
 STORAGETYPE=FS
@@ -45,6 +45,7 @@ TEMPLATENAME = "My Clone TEMPLATE"
 
 [DELETEDATABASE]
 SOURCEDB = "$var_ora_sid"
+
 [generateScripts]
 TEMPLATENAME = "Create Database - $var_ora_sid"
 GDBNAME = "$var_ora_sid"
@@ -52,8 +53,8 @@ GDBNAME = "$var_ora_sid"
 [CONFIGUREDATABASE]
 SOURCEDB = "$var_ora_sid"
 EMCONFIGURATION = "LOCAL"
-SYSMANPASSWORD = "$ora_password"
-DBSNMPPASSWORD = "$ora_password"
+SYSMANPASSWORD = "$var_password"
+DBSNMPPASSWORD = "$var_password"
 
 [DELETEINSTANCE]
 DB_UNIQUE_NAME = "$var_ora_sid"
@@ -96,7 +97,7 @@ if [[ $bool_found_instance = "yes" ]]
     # It's dangerous !!!
     # You'll lose all your data with NO WARNING.
 
-    # su - oracle -c "dbca -silent -deleteDatabase -sourcedb $inst -sid $inst"
+    su - oracle -c "dbca -silent -deleteDatabase -sourcedb $inst -sid $inst"
 
  else
     echo "The instance:$var_ora_sid, NOT EXSIST. -- That's FINE."
