@@ -170,6 +170,19 @@ f_user_env() {
   "oracle" )
 #@@@@@@@@@@
 cat <<EOF > $config_file_user_env
+# Default
+# .bash_profile
+
+# Get the aliases and functions
+if [ -f ~/.bashrc ]; then
+        . ~/.bashrc
+fi
+
+# User specific environment and startup programs
+
+PATH=$PATH:$HOME/bin
+
+export PATH
 
 # for Oracle database
 
@@ -212,6 +225,19 @@ EOF
   "grid" )
 #@@@@@@@@@@
 cat <<EOF > $config_file_user_env
+#Default
+# .bash_profile
+
+# Get the aliases and functions
+if [ -f ~/.bashrc ]; then
+        . ~/.bashrc
+fi
+
+# User specific environment and startup programs
+
+PATH=$PATH:$HOME/bin
+
+export PATH
 
 # for Oracle database
 

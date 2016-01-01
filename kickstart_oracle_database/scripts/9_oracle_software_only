@@ -395,4 +395,8 @@ echo "%%%%%%%%%%%%%%%%%%%%%"
 echo "Oracle database software only install, DONE."
 echo ""
 
+# restart system after install done
+#echo "@@@@ RESTART LINUX SYSTEM"
+#restart
+
 # @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
