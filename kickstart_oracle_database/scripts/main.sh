@@ -88,6 +88,9 @@ do
    ) 2>&1 > $current_script_log_full_path
    # @@@@@@@@@@@@@@@@@@@@@@
 
+   #output logfile
+   cat $current_script_log_full_path
+
    # change current script id to config file
    # refresh variable
    script_begin_id=`cat $config_file | grep "script_begin_id=" | cut -d'=' -f2`
@@ -112,5 +115,8 @@ echo "$config_file, enable has been CHANGE ---> 0, means DISABLE"
 
 echo ""
 echo -e "main.sh, End: \t\t"`date`
+
+#reboot os
+reboot
 
 ) 2>&1 > $log_file
