@@ -6,7 +6,7 @@
 # @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 # variable
 
-list_script="1_os_alias_etc 2_dir 3_yum 4_selinux 5_linux_config_file 6_os_account 7_static_network 8_services 9_oracle_software_only 10_execute_root_script 11_oracle_listener 12_oracle_instance"
+list_script="1_os_alias_etc 2_dir 3_yum 4_selinux 5_linux_config_file 6_os_account 7_static_network 8_services 9_oracle_software_only"
 
 # variable: file path
 execute_path=`dirname $0`
