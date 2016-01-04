@@ -1,0 +1,38 @@
+# Script: 10_execute_root_script
+
+# support variable
+var_ora_base=`su - oracle -c "env | grep ORACLE_BASE" | cut -d'=' -f2`
+var_ora_home=`su - oracle -c "env | grep ORACLE_HOME" | cut -d'=' -f2`
+
+# file path
+script_orainstRoot_path=$var_ora_base/oraInventory/orainstRoot.sh
+script_root_path=$var_ora_home/root.sh
+
+# @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+# execute: orainstRoot.sh
+echo "--------------"
+echo "execute: $script_orainstRoot_path"
+
+echo "*************"
+$script_orainstRoot_path
+echo "*************"
+
+echo "@@@ $script_orainstRoot_path, has been Done"
+echo ""
+
+# @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+# execute: root.sh
+echo "--------------"
+echo "execute: $script_root_path"
+
+echo "*************"
+$script_root_path <<SCRIPT
+/usr/local/bin
+
+SCRIPT
+echo "*************"
+
+echo "@@@ $script_root_path, has been Done"
+echo ""
+
+# @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@

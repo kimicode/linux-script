@@ -1,0 +1,120 @@
+# Script: 12_oracle_instance
+
+# support variable
+var_ora_base=`su - oracle -c "env | grep ORACLE_BASE" | cut -d'=' -f2`
+var_ora_home=`su - oracle -c "env | grep ORACLE_HOME" | cut -d'=' -f2`
+
+response_file_instance=/script/oracle_instance.rsp
+
+var_ora_sid=`su - oracle -c "env | grep ORACLE_SID" | cut -d'=' -f2`
+var_password="oracle"
+
+#@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+# create response file for instance
+
+cat <<RESP > $response_file_instance
+[GENERAL]
+RESPONSEFILE_VERSION = "10.0.0"
+OPERATION_TYPE = "createDatabase"
+
+[CREATEDATABASE]
+GDBNAME = "$var_ora_sid"
+SID = "$var_ora_sid"
+TEMPLATENAME = "New_Database.dbt"
+SYSPASSWORD = "$var_password"
+SYSTEMPASSWORD = "$var_password"
+SYSMANPASSWORD = "$var_password"
+DBSNMPPASSWORD = "$var_password"
+DATAFILEDESTINATION = "$var_ora_base/oradata"
+RECOVERYAREADESTINATION = "$var_ora_base/flash_recovery_area"
+STORAGETYPE=FS
+CHARACTERSET = "ZHS16GBK"
+NATIONALCHARACTERSET= "AL16UTF16"
+LISTENERS = "LISTENER"
+MEMORYPERCENTAGE = "40"
+DATABASETYPE = "MULTIPURPOSE"
+
+[createTemplateFromDB]
+SOURCEDB = "myhost:1521:$var_ora_sid"
+SYSDBAUSERNAME = "system"
+TEMPLATENAME = "My Copy TEMPLATE"
+
+[createCloneTemplate]
+SOURCEDB = "$var_ora_sid"
+TEMPLATENAME = "My Clone TEMPLATE"
+
+[DELETEDATABASE]
+SOURCEDB = "$var_ora_sid"
+
+[generateScripts]
+TEMPLATENAME = "Create Database - $var_ora_sid"
+GDBNAME = "$var_ora_sid"
+
+[CONFIGUREDATABASE]
+SOURCEDB = "$var_ora_sid"
+EMCONFIGURATION = "LOCAL"
+SYSMANPASSWORD = "$var_password"
+DBSNMPPASSWORD = "$var_password"
+
+[DELETEINSTANCE]
+DB_UNIQUE_NAME = "$var_ora_sid"
+INSTANCENAME = "$var_ora_sid"
+SYSDBAUSERNAME = "sys"
+
+RESP
+echo "@@@ response file: $response_file_instance, CREATE."
+#@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+
+# check system, already have instance.
+# support variable
+instance_exsist=`cat /etc/oratab | strings | grep -v ^# | cut -d':' -f1`
+
+# if instnace already exsist
+bool_found_instance=no
+
+# loop instances -- Here need be change. -- DONE.
+for inst in $instance_exsist
+do
+   if [[ $var_ora_sid = $inst ]]
+   then
+      bool_found_instance=yes
+   else
+      bool_found_instance=no
+
+   fi
+
+done
+
+if [[ $bool_found_instance = "yes" ]]
+ then
+    echo ""
+    echo "------------------------"
+    echo "The instance:$var_ora_sid, already in used."
+    echo "Check Again !!!"
+    echo "------------------------"
+
+    # ACTION --- If you want delete duplicate instance
+    # It's dangerous !!!
+    # You'll lose all your data with NO WARNING.
+
+    su - oracle -c "dbca -silent -deleteDatabase -sourcedb $inst -sid $inst"
+
+ else
+    echo "The instance:$var_ora_sid, NOT EXSIST. -- That's FINE."
+
+ fi
+
+echo "======================"
+echo ""
+
+#@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+# do instance create
+
+echo "@@@ do instance create, SILENT MODE."
+echo "------------------"
+su - oracle -c "dbca -silent -responseFile $response_file_instance"
+echo "------------------"
+echo "@@@ instance:$var_ora_sid, has been CREATE."
+echo ""
+
+#@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@

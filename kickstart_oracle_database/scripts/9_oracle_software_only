@@ -99,48 +99,51 @@ f_unzip_file() {
 #-------------------------------
 
 f_init_dir() {
-  #variable
-  #$1, dir_path
+  # variable
+  #$1, directory
   dir_path=$1
 
-  # do delete
-  if [ -d "$dir_path" ]
-  then
-        echo "------"
-        echo "Result:: directory $dir_path, EXSIST."
+  # check:
+  # 1.is exsist
+  # 2.is null or not
+  # 
+  # action:
+  # 1.do create
+  # 2.do clean(delete)
 
-        echo "------"
-        rm -rf $dir_path
-        echo "Result:: directory $dir_path, DELETE."
+  if [ -d $dir_path ]
+  then
+   echo "@@ directory:$dir_path, already EXSIST."
+
+   if [ `ls $dir_path | wc -l` = 0 ]
+   then
+     echo "-- dir:$dir_path, NULL."
+   else
+     echo "-- dir:$dir_path, NOT NULL."
+
+     # do delete
+     rm -rf $dir_path/*
+     echo "-- dir:$dir_path, already DELETE."
+
+   fi
+
   else
-        echo "------"
-        echo "Result:: directory $dir_path, is NOT EXSIST."
+   echo "@@ directory:$dir_path, NOT EXSIST."
+
   fi
 
-  # do create
-  mkdir -p $dir_path
-  echo "@@@ dir:$dir_path, has been CREATE."
+   # do create
+   mkdir -p $dir_path
+   echo "-- dir:$dir_path, CREATE."
 
-  chmod -R 777 $dir_path
-  echo "@@@ dir:$dir_path, has been CHANGE MODE."
+   # change mode and owner
+   chmod -R 755 $dir_path
+   echo "-- dir:$dir_path, CHANGED MODE."
 
-
-  echo ""
+   chown -R oracle.oinstall $dir_path
+   echo "-- dir:$dir_path, CHANGED OWNER."
 
 }
-
-#-------------------------------
-
-#-------------------------------
-
-#-------------------------------
-
-#-------------------------------
-
-#-------------------------------
-
-#-------------------------------
-
 
 #-------------------------------
 
@@ -376,6 +379,16 @@ echo "@@@ response file: $ora_response_file, CREATE."
 # Install Oracle software only by response file
 
 echo "===================="
+echo "Init ORACLE_HOME."
+echo "ORACLE_BASE: $var_ora_base"
+echo "ORACLE_HOME: $var_ora_home"
+echo "===================="
+
+f_init_dir $var_ora_home
+
+echo ""
+
+echo "===================="
 echo "Oracle database Silent INSTALL."
 echo "Resp file: $ora_response_file"
 echo "===================="
@@ -384,7 +397,27 @@ echo ""
 echo "do Install."
 echo -e "Started: \t"`date`
 echo "---------------------"
-su - oracle -c "$file_path_store/database/runInstaller -silent -responseFile $ora_response_file"
+#su - oracle -c "$file_path_store/database/runInstaller -silent -responseFile $ora_response_file"
+su - oracle -c "$file_path_store/database/runInstaller -silent -ignoreSysPrereqs -responseFile $ora_response_file"
+
+# check if oui is finished.
+count_while=1
+
+while [ `ps -ef | grep -v grep | grep oracle | grep oui | wc -l` != 0 ]
+do
+      echo ""
+      echo "@@@ Process is still working... Now: $count_while"
+
+      # increase count number.
+      let count_while=count_while+1
+
+      # if process not done, keep sleep 20's
+      echo "--- sleep: 30 sec."
+      echo ""
+
+      sleep 20
+
+done
 
 echo ""
 echo "---------------------"
@@ -395,8 +428,5 @@ echo "%%%%%%%%%%%%%%%%%%%%%"
 echo "Oracle database software only install, DONE."
 echo ""
 
-# restart system after install done
-echo "@@@@ RESTART LINUX SYSTEM"
-restart
 
 # @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@

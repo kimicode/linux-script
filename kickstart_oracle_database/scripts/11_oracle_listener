@@ -1,0 +1,94 @@
+# Script: 11_oracle_listener
+
+# support variable
+var_ora_base=`su - oracle -c "env | grep ORACLE_BASE" | cut -d'=' -f2`
+var_ora_home=`su - oracle -c "env | grep ORACLE_HOME" | cut -d'=' -f2`
+
+# file path
+response_file_listener=/script/oracle_listener.rsp
+
+file_path_tns_home=$var_ora_home/network/admin
+
+file_path_listener=$file_path_tns_home/listener.ora
+file_path_tns=$file_path_tns_home/tnsnames.ora
+
+# @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+cat <<RESP > $response_file_listener
+[GENERAL]
+RESPONSEFILE_VERSION="10.0"
+CREATE_TYPE= "CUSTOM"
+[oracle.net.ca]
+INSTALLED_COMPONENTS={"server","net8","javavm"}
+INSTALL_TYPE=""custom""
+LISTENER_NUMBER=1
+LISTENER_NAMES={"LISTENER"}
+LISTENER_PROTOCOLS={"TCP;1521"}
+LISTENER_START=""LISTENER""
+NAMING_METHODS={"TNSNAMES","ONAMES","HOSTNAME"}
+NSN_NUMBER=1
+NSN_NAMES={"EXTPROC_CONNECTION_DATA"}
+NSN_SERVICE = {"PLSExtProc"}
+NSN_PROTOCOLS={"TCP;HOSTNAME;1521"}
+
+RESP
+# @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+echo "@@@ File: $response_file_listener, DONE."
+
+# Run
+# @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+
+# delete old settings
+if [[ `ls $file_path_tns_home | grep "ora"` != "" ]]
+then
+   echo "@@@ $file_path_tns_home, is NOT NULL (HAVE *.ora)."
+   mv $file_path_tns_home/* /backup
+   echo "@@@ Data in $file_path_tns_home, has been MOVE to /backup."
+else
+   echo "@@@ $file_path_tns_home, is NULL (NOT *.ora)."
+fi
+
+echo "========================"
+echo ""
+
+# do silent config
+echo "@@@ NETCA create Listener, silent mode."
+echo "-------------"
+su - oracle -c "netca /silent /responseFile $response_file_listener"
+echo "-------------"
+echo "@@@ NETCA create Listener, SUCCESSFUL."
+echo ""
+
+echo "File: $file_path_listener, DETAILS:"
+echo "--------------------"
+cat $file_path_listener
+echo "--------------------"
+echo ""
+
+echo "File: $file_path_tns, DETAILS:"
+echo "--------------------"
+cat $file_path_tns
+echo "--------------------"
+echo ""
+
+echo "Listener status:"
+echo "--------------------"
+su - oracle -c "lsnrctl status"
+echo "--------------------"
+echo ""
+
+echo "Network Port, STATUS:"
+echo "--------------------"
+netstat -tupln | grep --color lsnr
+echo ""
+
+echo "Process contain: lsnr"
+echo "--------------------"
+ps -ef | grep --color "lsnr"
+echo ""
+
+echo "Processes contain: LOCAL="
+echo "--------------------"
+ps -ef | grep --color "LOCAL="
+echo ""
+
+# @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
