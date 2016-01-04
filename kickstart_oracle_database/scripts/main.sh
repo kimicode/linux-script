@@ -116,7 +116,4 @@ echo "$config_file, enable has been CHANGE ---> 0, means DISABLE"
 echo ""
 echo -e "main.sh, End: \t\t"`date`
 
-#reboot os
-reboot
-
 ) 2>&1 > $log_file
