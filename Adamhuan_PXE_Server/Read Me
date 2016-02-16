@@ -1,0 +1,52 @@
+Name：Adamhuan PXE Server
+Type：Automatic script
+
+基础：
+1. 已经安装好的Linux服务器，基本安装或者最小安装都可以。
+2. 准备好额外的存储，用于PXE的软件与资源的存放（只需要Linux可以通过fdisk看到盘即可，无须格式化分区表，亦无须挂载，稍后的脚本都会自动完成这些事宜。)
+
+过程：
+0. 别名的处理 Done
+1. 网络配置：主机名 Done
+2. 网络配置：hosts表  Done
+3. 网络配置：网卡IP静态化 Done
+4. 安全配置：防火墙 Done
+5. 安全配置：SELinux Doen
+6. 服务配置：服务自启动 Done
+7. 软件包：YUM配置（YUM本身；YUM源文件）  Done
+
+addition.0: 额外存储的处理 Done
+addition.1: 文件系统路径的创建 Done
+addition.2: 格式化分区 Done
+addition.3: 额外存储挂载到特定的分区上 Done
+
+8. 软件包：安装 Done
+
+addition.1: 特定服务的开机启动 Doen
+
+9. 架构：HTTPD（可选）
+10.架构：TFTP  Done
+11.架构：TFTP的PXE支持 Done
+12.架构：DHCP  Done
+13.架构：Kickstart，脚本文件
+14.架构：NTP（可选）
+15.架构：DNS（可选）
+16.架构：NFS Done
+17.架构：FTP（可选） Done
+
+（... etc。）
+2016年2月13日19:31:33
+
+设计：
+1. 基本函数抽离
+2. 纯粹逻辑
+3. 配置数据
+2016年2月13日19:37:09
+
+在脚本运行完了以后，还需要做以下的几件事：
+1. ISO介质：将特定发行版的ISO传到额外存储主目录的特定文件夹中，例如：RHEL5 64的ISO就可以上传到“/addition_storage/media_store/os/linux/rhel/RHEL5/64/”。
+2. Kickstart：
+  a. 将准备好的Kickstart脚本放在额外存储主目录的特定文件夹中。  Done
+  b. pxelinux.cfg/default，添加对应记录。 Done
+  c. tftpboot/boot.msg，添加对应的记录。 Done
+2016年2月16日17:32:56

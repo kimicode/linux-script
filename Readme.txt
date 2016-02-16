@@ -23,5 +23,10 @@ kickstart_oracle_database，全脚本化的部署和配置Oracle数据库。
 @@@ 2016年1月2日：
 @@@ 自动化已支持到：自动配置监听器、自动建立数据库实例
 
+Adamhuan_PXE_Server，自动配置PXE Server。
+脚本使用的说明：http://d-prototype.com/archives/4335
+@@@ 2016年2月16日：
+@@@ 自动配置PXE Server。
+
 ——————
 Last edit：Adamhuan，2016年1月1日17:57:54

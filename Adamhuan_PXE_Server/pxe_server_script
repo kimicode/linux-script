@@ -1,0 +1,709 @@
+# file: pxe_server_script
+# Comment LANG: Chinese
+
+# Structure: function
+
+# 基础函数
+
+# 替换函数
+# 替换键值对的文本文件
+# 适用于键值对以“=”关联的文本文件
+func_file_replace_value_by_key(){
+  # $1, 目标文件
+  # $2, 用于查询的键，Key
+  # $3, 替换后的值，Value
+  # $4, 目标键列表（可选，用于在指定键列中循环，批量、确定范围的修改）
+  # $5, 关注点（键/首要操作是替换与追加键，值/首要操作是替换值）
+
+  f_file="$1"
+  f_key="$2"
+  f_new_value="$3"
+  f_key_list="$4"
+  f_focus="$5"
+
+  f_list_keys=""
+
+  # 通过“_null”，指定没有目标键列表
+  if [ "$f_key_list" == "_null" ]
+  then
+    f_key_list=""
+  fi
+
+  if [ "$f_key_list" != "" ]
+  then
+    f_list_keys="$f_key_list"
+  else
+    f_list_keys=`cat $f_file | grep -v "^#" | grep "=" | cut -d"=" -f1 | cut -d' ' -f2`
+  fi
+
+  # 默认为键中心
+  if [ "$f_focus" == "" ]
+  then
+    f_focus="key"
+  fi
+
+  for key_item in $f_list_keys
+  do
+    if [ $f_key = $key_item ]
+    then
+      # 依据关注点的差异来分配sed替换字符串的策略
+      case "$f_focus" in
+      "key" )
+        f_old_value=`cat $f_file | grep -v "^#" | grep "^$f_key=" | cut -d"=" -f2`
+      ;;
+      "value" )
+        f_old_value=`cat $f_file | grep -v "^#" | grep "$f_key=" | cut -d"=" -f2`
+      ;;
+      esac
+      f_old_value_sed=`func_sed_path "$f_old_value"`
+
+      # Test
+      #echo "@@ f_old_value is: $f_old_value"
+
+      # 如果能找到记录，替换
+      # 如果找不到记录，追加
+      if [[ $f_old_value != "" ]]
+      then
+        sed -i "s/$f_key=$f_old_value_sed/$f_key=$f_new_value/" $f_file
+      else
+        echo "$f_key=$f_new_value" >> $f_file
+      fi
+
+    fi
+
+  done
+
+}
+
+# 取消服务的开启自运行
+# 该脚本可以写的更灵活一点，启停的值作为参数传入。
+# 当然，也可以另写一个全新的函数控制服务的开机启动
+func_service_disable_onboot(){
+  for service_item in $list_service_disable
+  do
+    echo "@@@ service: $service_item, startup: off"
+    chkconfig $service_item off
+  done
+}
+
+# 取消服务的开启自运行
+func_service_enable_onboot(){
+  for service_item in $list_service_enable
+  do
+    echo "@@@ service: $service_item, startup: on"
+    chkconfig $service_item on
+  done
+}
+
+# 启动服务
+func_service_start(){
+  for service_item in $list_service_start
+  do
+    echo "@@@ service: $service_item, startup: on"
+    service $service_item start
+  done
+}
+
+# 将路径格式字符串转换成适合sed过滤条件的字符串
+func_sed_path(){
+  # $1，原始路径
+  func_file_path="$1"
+
+  echo "$func_file_path" | sed 's/\//\\\//g'
+}
+
+# 特定任务函数
+
+# 处理网卡相关的信息
+# 包括：1.hosts表的配置；2.网卡配置静态化
+func_ifcfg(){
+  # 数据：hosts表
+  data_hosts=""
+
+  # 数据：特定网卡（ifcfg-*）
+  data_ifcfg=""
+
+  for ifcfg_item in $list_ifconfig
+  do
+    func_ifcfg_file="/etc/sysconfig/network-scripts/ifcfg-$ifcfg_item"
+
+    func_ipaddr=`ifconfig $ifcfg_item | grep "inet addr:" | cut -d':' -f2 | cut -d' ' -f1`
+    func_netmask=`ifconfig $ifcfg_item | grep "inet addr:" | cut -d"k" -f2 | cut -d':' -f2`
+    func_gateway=`/sbin/route -n | grep "^0\.0\.0\.0" | awk '{ print $2 }'`
+
+    case "$ifcfg_item" in
+    "eth0" )
+      func_hostname="$var_hostname"
+
+      # 将公共网卡的本机地址添加到DNS解析表
+      echo "nameserver $func_ipaddr" >> $sys_file_resolv
+    ;;
+    "eth1" )
+      func_hostname="$var_hostname-priv"
+    ;;
+    "lo" )
+      func_hostname="localhost"
+    ;;
+    esac
+
+    # 处理ifcfg数据
+    for ifcfg_key_item in $list_ifconfig_keys
+    do
+      case "$ifcfg_key_item" in
+      "BOOTPROTO" )
+      func_file_replace_value_by_key "$func_ifcfg_file" "BOOTPROTO" "static" "$list_ifconfig_keys"
+      ;;
+      "ONBOOT" )
+      func_file_replace_value_by_key "$func_ifcfg_file" "ONBOOT" "on" "$list_ifconfig_keys"
+      ;;
+      "IPADDR" )
+      func_file_replace_value_by_key "$func_ifcfg_file" "IPADDR" "$func_ipaddr" "$list_ifconfig_keys"
+      ;;
+      "NETMASK" )
+      func_file_replace_value_by_key "$func_ifcfg_file" "NETMASK" "$func_netmask" "$list_ifconfig_keys"
+      ;;
+      "GATEWAY" )
+      func_file_replace_value_by_key "$func_ifcfg_file" "GATEWAY" "$func_gateway" "$list_ifconfig_keys"
+      ;;
+
+      esac
+
+    done
+
+    # 处理hosts表数据
+    data_host+=`cat <<EOF
+
+$func_ipaddr $func_hostname
+EOF`
+
+  done
+
+  echo "$data_host" > $sys_file_hosts
+}
+
+# YUM：源文件数据
+func_yum_repo(){
+  # $1，源路径（可选，默认为本脚本中指定变量所设置的值）
+  # $2，选择标识符（操作系统发行版-位制，eg：RHEL5-64/OEL4-32）（可选，默认为当前操作系统的版本与进制）
+
+  #func_yum_repo_source_path="$1"
+  func_yum_repo_source_path="$cust_yum_repo_source"
+
+  func_signal="$2"
+
+  os_release=`cat $sys_file_release | sed 's/[[:space:]]/\n/g' | awk -v FS="" '{print $1}' | awk '{ for (i=1;i<=NF;i++) if($i != "S" && $i != "r" && $i != "(" ) {printf $i}}END{printf "\n"}'`
+  os_bit=`getconf LONG_BIT`
+
+  check_signal=""
+
+  if [ "$func_signal" != "" ]
+  then
+    check_signal="$func_signal"
+  else
+    check_signal=$os_release-$os_bit
+  fi
+
+  func_yum_repo_file="$sys_file_yum_repo_base/$check_signal.repo"
+
+  case "$check_signal" in
+  "RHEL5-64" )
+cat <<REPO > $func_yum_repo_file
+[Server]
+name=Server
+baseurl=$func_yum_repo_source_path/Server
+gpgcheck=0
+
+[VT]
+name=VT
+baseurl=$func_yum_repo_source_path/VT
+gpgcheck=0
+
+[Cluter]
+name=Cluster
+baseurl=$func_yum_repo_source_path/Cluster
+gpgchech=0
+
+[ClusterStorage]
+name=ClusterStorage
+baseurl=$func_yum_repo_source_path/ClusterStorage
+gpgcheck=0
+
+REPO
+  ;;
+  esac
+
+}
+
+# 刷新YUM源库缓存
+func_yum_refresh(){
+  echo "Yum clean metadata:"
+  echo "**********************"
+  yum clean metadata
+  echo ""
+  echo "Yum clean all:"
+  echo "**********************"
+  yum clean all
+  echo ""
+  echo "Yum list repo:"
+  echo "**********************"
+  yum repolist
+  echo ""
+
+}
+
+# 创建文件系统的目录结构
+func_mkdir(){
+  # 创建前，先删除
+  rm -rf /{$cust_path_temp,$cust_path_iso,$cust_path_backup,$cust_path_software}
+
+  # 操作系统自身的自定义文件系统结构
+  mkdir -p /{$cust_path_temp,$cust_path_iso,$cust_path_backup,$cust_path_software}
+
+  # 针对PXE Server而定义的文件系统结构
+  mkdir -p /$cust_path_addition_device_mountpoint/{tftpboot/pxelinux.cfg,media_store/{os/{linux/{aix,suse,ubuntu,oel/{OEL5,OEL6,OEL7},rhel/{RHEL5/{32,64},RHEL4/{32,64},RHEL6}},mswindows},database/{oracle/{oradb/{9i,10g/{linux/{32,64},mswin},11g,12c/{linux/64,mswin}},timesten,mysql},microsoft/sqlserver,ibm/db2,mongodb,redis,postgresql},program_language/{java,perl,python},webapp/{wordpress,discuz}},script/{bash_shell,python},kickstart,example,other}
+}
+
+# 取消命令别名
+# 也可以用上面替代函数的参数4的键列表来实现
+func_alias_disable(){
+  for alias_item in $list_alias
+  do
+    func_file_replace_value_by_key "$sys_file_env_root" "$alias_item" "$alias_item" "_null" "value"
+  done
+
+}
+
+# 配置额外存储
+# 额外存储的设定是通过变量：addition_storage_device，指定的。
+func_addition_store_device(){
+
+  # 清空存储的分区表
+  dd if=/dev/zero of=$addition_storage_device bs=1M count=512
+
+  # 分配label
+  echo "@@@ parted, make label"
+  parted -s $addition_storage_device mklabel msdos
+
+  # 划分分区
+  # before
+  echo "Before parted:"
+  parted -s $addition_storage_device print
+  echo ""
+
+  # during parted
+  echo "*************"
+  func_divide_store_device "$addition_storage_device" 1
+  echo "*************"
+
+  # after
+  echo "After parted:"
+  parted -s $addition_storage_device print
+  echo ""
+
+}
+
+# 处理额外磁盘存储分区后的文件系统标记（mkfs）与挂载（mount）的操作
+func_addition_store_fs(){
+  # $1，文件系统类型：ext3, ext4, ... etc
+  var_fs_type="$1"
+
+  func_list_device_parts=`ls $addition_storage_device* | grep "[1-9]$"`
+
+  # 当前的循环里面的策略仅适用于磁盘设备只有一个分区的情况
+  for part_item in $func_list_device_parts
+  do
+    echo "=============================================================="
+    echo "@@ current part is: $part_item in $addition_storage_device"
+    echo "--- wanted, file system type: $var_fs_type"
+    echo ""
+
+    # mkfs：开始
+    mkfs -t $var_fs_type $part_item
+
+    # 挂载到文件系统（创建目录的过程应该在挂载之后开启）
+    # 挂载前，创建挂载点：
+    rm -rf $cust_path_addition_device_mountpoint
+    mkdir $cust_path_addition_device_mountpoint
+
+    echo "@@ umount $cust_path_addition_device_mountpoint"
+    umount $cust_path_addition_device_mountpoint
+    echo "@@ mount $part_item on $cust_path_addition_device_mountpoint"
+    mount -t $var_fs_type $part_item $cust_path_addition_device_mountpoint
+
+    # 将挂载策略写入Linux文件系统表
+    # 这里的追加策略也需要优化：如果被追加的文件中已经有了目标记录，则放弃追加行为；否则，执行。
+    echo "$part_item $cust_path_addition_device_mountpoint $var_fs_type defaults 0 0" >> $sys_file_fstab
+
+  done
+
+}
+
+# 均分磁盘设备
+func_divide_store_device(){
+  # $1，设备名
+  # $2, 划分的分区数
+
+  device_name="$1"
+  part_count="$2"
+
+  size_str="`fdisk -l "$device_name" | grep --color "Disk" | cut -d':' -f2 | cut -d',' -f1`"
+
+  # Display
+  echo "@@ size string: $size_str"
+
+  # 通过上面的容量字符串得到的：
+  # 数字部分
+  var_num=`echo $size_str | cut -d' ' -f1`
+  # 单位部分
+  var_unit=`echo $size_str | cut -d' ' -f2`
+
+  # Display
+  echo "Number part: $var_num"
+  echo "Unit part: $var_unit"
+
+  # 默认将容量数字转化为兆（MB）为单位的数字
+  var_number_mb=""
+
+  # 均分分区后，每个分区的容量大小（大致的，差异在最后一个分区）
+  var_number_step=""
+
+  # 通过单位，计算转换成MB之后的具体数字值
+  case "$var_unit" in
+  "GB" )
+    var_number_mb=`echo "scale=3; $var_num*1024" | bc`
+  ;;
+
+  "MB" )
+    var_number_mb="$var_number"
+  ;;
+
+  "TB" )
+    var_number_mb=`echo "scale=3; $var_number*1024*1024" | bc`
+  ;;
+
+  esac
+
+  # 通过得到的转化为MB后的数字值以及希望划分的分区数，得到每个分区的预计大小
+  var_number_step=`echo "scale=3; $var_number_mb/$part_count" | bc`
+
+  echo "@@ size step: $var_number_step"
+
+  # 开始计算每个分区的起始柱面以及结束柱面的边界值
+  # 起始柱面
+  var_part_cylinder_begin=""
+  # 结束柱面
+  var_part_cylinder_end=""
+
+  # 计算开始
+  for part_item in `seq $part_count`
+  do
+    echo "Loop id: $part_item"
+    echo "************"
+
+    var_part_cylinder_end=`echo "scale=3; $var_number_step*$part_item" | bc`
+
+    case "$part_item" in
+    "1" )
+      var_part_cylinder_begin=0
+      var_part_cylinder_end="100%"
+    ;;
+    "$part_count" )
+      var_part_cylinder_end="100%"
+    ;;
+    esac
+
+    # Display
+    echo "@@@ begin: $var_part_cylinder_begin"
+    echo "@@@ end: $var_part_cylinder_end"
+
+    # 这里，获得了开始柱面与结束柱面后，就可以使用parted对磁盘做分区了
+    # 需要注意的是，主分区的个数默认只能有四个，超过的部分为扩展分区
+    # 稍后加入这种判断
+
+    parted -s "$device_name" mkpart primary $var_part_cylinder_begin $var_part_cylinder_end
+
+    echo ""
+
+    # refresh begin cylinder
+    var_part_cylinder_begin=$var_part_cylinder_end
+
+  done
+
+}
+
+# 架构：TFTP
+func_tftp(){
+
+  # 修改xinet.d的服务配置文件
+  sed -i '/disable/s/yes/no/' $sys_file_xinetd_tftp
+  sed -i "/server_args/s/-s \/tftpboot/-u nobody -s $cust_path_tftpboot_sed/" $sys_file_xinetd_tftp
+
+}
+
+# 架构，DHCP
+func_dhcp(){
+ # 将样例复制到目标位置
+ cp -rf $sys_file_sample_dhcp $sys_file_dhcp
+
+ # 获取IP信息
+ var_eth0_gateway=`/sbin/route -n | grep "^0\.0\.0\.0" | awk '{ print $2 }'`
+ var_eth0_ipaddr=`ifconfig eth0 | grep "inet addr" | cut -d':' -f2 | cut -d' ' -f1`
+ var_eth0_network=`route -n | grep 255.255.255.0 | awk '{ print $1}' | awk -F"." '{ print $1"."$2"."$3}'`
+
+ # 开始修改其中的内容
+ # 替换
+ sed -i "s/192.168.0/$var_eth0_network/g" $sys_file_dhcp
+ sed -i "s/192.168.0.1/$var_eth0_gateway/g" $sys_file_dhcp
+ sed -i "s/192.168.1.1/$var_eth0_ipaddr/g" $sys_file_dhcp
+ sed -i "s/domain.org/$var_dhcp_domain/g" $sys_file_dhcp
+
+ #增加
+ sed -i "/ignore client-updates/anext-server $var_eth0_ipaddr;" $sys_file_dhcp
+ sed -i '/^}/ifilename "/pxelinux.0";' $sys_file_dhcp
+
+}
+
+# 架构：PXE
+func_pxe(){
+  # 复制pxelinux.0到指定位置
+  cp $sys_file_pxelinux $cust_path_tftpboot
+
+  # 复制光盘的isolinux到指定位置
+  # 这一步是否跟具体光盘相关联？不同的光盘介质需要将各自的isolinux放入其中？
+  cp $sys_path_isolinux/* $cust_path_tftpboot/
+
+  # 配置pxelinux.cfg
+  cp $sys_file_isolinux_cfg $cust_path_tftpboot/pxelinux.cfg/default
+
+}
+
+# 架构：NFS
+func_nfs(){
+  var_eth0_ipaddr=`ifconfig eth0 | grep "inet addr" | cut -d':' -f2 | cut -d' ' -f1`
+
+  echo "$cust_path_addition_device_mountpoint $var_eth0_ipaddr/24(rw)" >> $sys_file_nfs_exports
+
+}
+
+# 架构：FTP
+func_vsftp(){
+  # 备份原配置文件
+  cp $sys_file_vsftp_conf $cust_path_backup
+
+  # 写入新的配置
+  cat <<FTP > $sys_file_vsftp_conf
+anonymous_enable=YES
+anon_upload_enable=YES
+anon_mkdir_write_enable=YES
+local_enable=YES
+write_enable=YES
+local_umask=022
+dirmessage_enable=YES
+xferlog_enable=YES
+connect_from_port_20=YES
+xferlog_std_format=YES
+listen=YES
+pam_service_name=vsftpd
+userlist_enable=NO
+tcp_wrappers=YES
+local_root=$cust_path_addition_device_mountpoint
+anon_root=$cust_path_addition_device_mountpoint
+chroot_local_user=YES
+FTP
+
+}
+
+# 架构：kickstart
+func_kickstart(){
+var_eth0_ipaddr=`ifconfig eth0 | grep "inet addr" | cut -d':' -f2 | cut -d' ' -f1`
+cat <<KICK >> $cust_path_tftpboot/pxelinux.cfg/default
+label RHEL5-64
+  kernel vmlinuz
+  append ks=nfs:$var_eth0_ipaddr:$cust_path_kickstart_base/ks_for_rhel5u10.cfg initrd=initrd.img
+KICK
+
+sed -i '/Use the function keys/a@@ Install Red Hat EL 5 64bit, Type: RHEL5-64' $cust_path_tftpboot/boot.msg
+
+}
+
+# -------------------------
+# Structure: variable
+
+# 初始定义地址
+# 自定义临时目录
+cust_path_temp=/temp_me
+
+# 自定义ISO挂载点
+cust_path_iso=/iso_me
+
+# 自定义软件缓存路径
+cust_path_software=/software_me
+
+# 自定义备份目录
+cust_path_backup=/backup_me
+
+# 文件列表
+# 系统文件（sys_file_*）
+
+# 文件系统表
+sys_file_fstab="/etc/fstab"
+
+# hosts表
+sys_file_hosts="/etc/hosts"
+sys_file_release="/etc/redhat-release"
+
+# 系统解析表
+sys_file_resolv="/etc/resolv.conf"
+
+# network，配置主机名
+sys_file_network="/etc/sysconfig/network"
+
+# 安全：SELinux
+sys_file_selinux="/etc/selinux/config"
+
+# 用户自定义文件（cust_file_*）
+
+# 路径列表
+# 系统路径（sys_path_*，or: meta_path_*）
+
+# 当前执行路径
+meta_path_execute=`dirname $0`
+
+# 用户自定义路径（cust_path_*）
+
+# 主机名
+var_hostname=`hostname`
+
+# 网卡列表
+list_ifconfig=`ifconfig | grep --color "Link encap:" | cut -d' ' -f1`
+list_ifconfig_keys="BOOTPROTO ONBOOT IPADDR NETMASK GATEWAY"
+
+# 服务列表
+list_service_disable="sendmail iptables"
+list_service_enable="dhcpd portmap syslog nfs xinetd network vsftpd"
+list_service_start="xinetd dhcpd nfs vsftpd"
+
+# YUM
+# YUM配置文件
+sys_file_yum="/etc/yum.conf"
+
+# YUM本地缓存路径
+cust_file_yum_cachedir="/software/yum_data"
+
+# 源配置文件根目录
+sys_file_yum_repo_base="/etc/yum.repos.d"
+
+# 源地址
+#cust_yum_repo_source="ftp://192.168.184.1/pub/"
+cust_repo_source="/iso"
+cust_yum_repo_source="file://$cust_repo_source"
+
+# 用户root的环境文件
+sys_file_env_root="/root/.bashrc"
+
+# 别名：命令列表
+list_alias="rm cp mv"
+
+# 磁盘设备列表
+# 自动扫描系统的磁盘设备
+list_disk_devices=`ls /dev/sd* | grep -v [1-9]$ | cut -d'/' -f3`
+
+# 额外增加的存储设备
+addition_storage_device="/dev/sdb"
+
+# 额外存储的根挂载点，具体的挂载点会根据不同的分区选择性的创建不同的子路径，例如：/addition_storage/{1,2,3}
+cust_path_addition_device_mountpoint="/addition_storage"
+
+# 架构：TFTP
+sys_file_xinetd_tftp="/etc/xinetd.d/tftp"
+cust_path_tftpboot="$cust_path_addition_device_mountpoint/tftpboot"
+cust_path_tftpboot_sed=`func_sed_path $cust_path_tftpboot`
+
+# 架构：DHCP
+sys_file_sample_dhcp="/usr/share/doc/dhcp*/dhcpd.conf.sample"
+sys_file_dhcp="/etc/dhcpd.conf"
+var_dhcp_domain="d-prototype.com"
+
+# 架构：PXE
+sys_file_pxelinux="/usr/share/syslinux/pxelinux.0"
+sys_path_isolinux="$cust_repo_source/isolinux"
+sys_file_isolinux_cfg="$cust_path_tftpboot/isolinux.cfg"
+
+# 架构：NFS
+sys_file_nfs_exports="/etc/exports"
+
+# 架构：FTP（vsFTP）
+sys_file_vsftp_conf="/etc/vsftpd/vsftpd.conf"
+
+# 架构：Kickstart
+cust_path_kickstart_base="/addition_storage/kickstart"
+
+# -------------------------
+# Action: Run
+
+# 0. 操作系统的基础命令别名
+func_alias_disable
+
+# 1. 主机名
+func_file_replace_value_by_key "$sys_file_network" "HOSTNAME" "$var_hostname"
+
+# 2. 网卡静态化：a)hosts表；b)网卡配置文件
+func_ifcfg
+
+# 3. SELinux
+func_file_replace_value_by_key "$sys_file_selinux" "SELINUX" "disabled"
+
+# 4. 服务：禁用开机启动
+func_service_disable_onboot
+
+# 5. YUM
+# 本地缓存
+var_yum_cachedir_sed=`func_sed_path "$cust_file_yum_cachedir"`
+func_file_replace_value_by_key "$sys_file_yum" "cachedir" "$var_yum_cachedir_sed"
+func_file_replace_value_by_key "$sys_file_yum" "keepcache" "1"
+
+# 源的配置
+func_yum_repo
+
+# 刷新YUM数据库
+func_yum_refresh
+
+# 通过YUM安装软件包
+yum install -y tftp tftp-server dhcp nfs* vsftp*
+
+# 开机需要启动的服务
+func_service_enable_onboot
+
+# 6. 配置额外存储
+# 创建分区表
+func_addition_store_device
+
+# 格式化分区
+func_addition_store_fs "ext3"
+
+# 7. 创建需要的目录结构
+# 文件系统的创建在额外存储挂载之后，这个次序是正确的。（不过当前的设计只适用于额外的磁盘存储设备，被唯一分区的情况）
+func_mkdir
+
+# 8. 架构：TFTP
+func_tftp
+
+# 9. 架构：DHCP
+func_dhcp
+
+# 10. 架构：PXE
+func_pxe
+
+# 11. 架构：NFS
+func_nfs
+
+# 12. 架构：FTP
+func_vsftp
+
+# 13. 架构：Kickstart
+func_kickstart
+
+# 所有架构配置完成后，启动的服务
+func_service_start
+
+# 结束
