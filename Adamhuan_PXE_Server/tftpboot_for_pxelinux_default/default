@@ -1,0 +1,31 @@
+default linux
+prompt 1
+timeout 600
+display boot.msg
+F1 boot.msg
+F2 options.msg
+F3 general.msg
+F4 param.msg
+F5 rescue.msg
+label linux
+  kernel rhel5u10_64/vmlinuz
+  append initrd=rhel5u10_64/initrd.img
+label text
+  kernel rhel5u10_64/vmlinuz
+  append initrd=rhel5u10_64/initrd.img text
+label ks
+  kernel rhel5u10_64/vmlinuz
+  append ks initrd=rhel5u10_64/initrd.img
+label local
+  localboot 1
+label memtest86
+  kernel memtest
+  append -
+
+label RHEL5-64
+  kernel rhel5u10_64/vmlinuz
+  append ks=nfs:192.168.184.132:/addition_storage/kickstart/ks_for_rhel5u10.cfg initrd=rhel5u10_64/initrd.img
+
+label RHEL6-64
+  kernel rhel6u6_64/vmlinuz
+  append ks=nfs:192.168.184.132:/addition_storage/kickstart/ks_for_rhel6u6.cfg initrd=rhel6u6_64/initrd.img
