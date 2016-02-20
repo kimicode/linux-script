@@ -437,7 +437,7 @@ yum install -y cobbler cobbler-web xinetd pykickstart cman dhcp tftp-server bind
 
 # 10. YUM安装完成后需要启用的服务
 do_action_service "httpd dhcpd cobblerd" "chkconfig" "on"
-do_action_service "httpd cobblerd" "service" "restart"
+#do_action_service "httpd cobblerd" "service" "restart"
 
 # COBBLER服务器的安装，到这里就完成了。
 echo ""
