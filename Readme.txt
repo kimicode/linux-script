@@ -28,5 +28,8 @@ Adamhuan_PXE_Server，自动配置PXE Server。
 @@@ 2016年2月16日：
 @@@ 自动配置PXE Server。
 
+cobbler_server_shell，自动配置Cobbler Server。
+@@@ 2016年2月20日：该脚本需要Linux版本为：RHEL6，或者以上。
+
 ——————
 Last edit：Adamhuan，2016年1月1日17:57:54
