@@ -29,6 +29,9 @@ Adamhuan_PXE_Server，自动配置PXE Server。
 @@@ 自动配置PXE Server。
 
 cobbler_server_shell，自动配置Cobbler Server。
+脚本使用说明：
+1. http://d-prototype.com/archives/4386
+2. http://d-prototype.com/archives/4390
 @@@ 2016年2月20日：该脚本需要Linux版本为：RHEL6，或者以上。
 
 ——————
