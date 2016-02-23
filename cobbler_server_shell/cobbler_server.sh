@@ -55,6 +55,23 @@ do_disable_selinux(){
   then
     func_replace "$file_sys_selinux_config" "SELINUX" "disabled" "="
 
+    # 并且，将SELINUX的状态修改为警告模式，而不是启用
+
+    # 当前状态
+    echo ""
+    echo "@@@ selinux status - before change:"
+    getenforce
+    echo ""
+
+    # 开始修改SELINUX，从强制变为警告
+    setenforce 0
+
+    # 修改完成后：
+    echo ""
+    echo "@@@ selinux status - after change:"
+    getenforce
+    echo ""
+
   fi
 }
 
