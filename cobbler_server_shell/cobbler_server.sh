@@ -260,6 +260,16 @@ baseurl=$cust_yum_repo_source/Server
 gpgcheck=0
 RHEL6-64
     ;;
+
+    "C6-64" )
+    # CentOS 6 64bit
+    cat <<C6-64 > $var_repo_file
+[ISO]
+name=ISO
+baseurl=$cust_yum_repo_source/
+gpgcheck=0
+C6-64
+    ;;
   esac
 }
 
@@ -348,8 +358,48 @@ do_refresh_cobbler(){
   echo ""
 }
 
+# 部署额外安装包：离线或者在线
+# 主要是两个程序包：EPEL及其相关软件包、PyYAML
+do_install_addition_rpm(){
+  # $1, 安装方式：online / offline
+  install_method="$1"
+
+  case "$install_method" in
+    "online" )
+      # 7. EPEL and PyYAML
+      # EPEL
+      rm -rf /tmp/epel*
+
+      #wget -P /tmp "$path_epel_rpm"
+      wget -P "$path_epel_rpm"
+
+      rpm -e epel-release
+      rpm -ivh /tmp/epel-release*.rpm
+
+      # PyYAML
+      rm -rf /tmp/PyYAML*
+
+      wget -P /tmp "$path_pyyaml_rpm"
+
+      rpm --nodeps -e PyYAML
+      yum install -y libyaml*
+      rpm -ivh /tmp/PyYAML*.rpm
+
+      # 刷新YUM库
+      do_yum_refresh
+    ;;
+    "offline" )
+      yum install -y mod_wsgi createrepo python-cheetah python-simplejson syslinux mod_ssl libyaml
+      rpm -ivh "$path_offline_rpm/*.rpm"
+    ;;
+  esac
+}
+
 # -----------------------------
 # 文件与路径
+
+# Part: Execute script
+path_execute_dir=`dirname $0`
 
 # Part: Install
 file_sys_network="/etc/sysconfig/network"
@@ -377,18 +427,18 @@ file_sys_httpd_conf="/etc/httpd/conf/httpd.conf"
 cust_machine_hostname="cobbler-master"
 
 # YUM源的地址（cust_yum_repo_source）
-#@@ Way One
-#cust_yum_repo_source_dir="/iso"
-#cust_yum_repo_source="file://$cust_yum_repo_source_dir"
+#@@ Way One，关键是：cust_yum_repo_source，的赋值
+cust_yum_repo_source_dir="/iso"
+cust_yum_repo_source="file://$cust_yum_repo_source_dir"
 
-#@@ Way Two
+#@@ Way Two，关键是：cust_yum_repo_source，的赋值
 var_repo_source_server_protocol="ftp"
 var_repo_source_server="192.168.184.132"
 
 var_os_release=`cat $file_sys_release | sed 's/[[:space:]]/\n/g' | awk -v FS="" '{print $1}' | awk '{ for (i=1;i<=NF;i++) if($i != "S" && $i != "r" && $i != "(" ) {printf $i}}END{printf "\n"}'`
 var_long_bit=`getconf LONG_BIT`
 
-cust_yum_repo_source="$var_repo_source_server_protocol://$var_repo_source_server/media_store/os/linux/rhel/$var_os_release/$var_long_bit"
+#cust_yum_repo_source="$var_repo_source_server_protocol://$var_repo_source_server/media_store/os/linux/rhel/$var_os_release/$var_long_bit"
 
 #-- 转化sed处理
 #cust_yum_repo_source_sed=`func_sed_path $cust_yum_repo_source`
@@ -402,8 +452,28 @@ cust_yum_keepcache_dir="/tmp/yum_data"
 # Cobbler的默认密码
 default_password="oracle"
 
+# 在线安装包
+
+# EPEL的在线安装包
+#path_epel_rpm="http://mirrors.ustc.edu.cn/fedora/epel/6/x86_64/epel-release-6-8.noarch.rpm"
+path_epel_rpm="https://dl.fedoraproject.org/pub/epel/epel-release-latest-6.noarch.rpm"
+
+# PyYAML的在线安装包
+path_pyyaml_rpm="ftp://ftp.icm.edu.pl/vol/rzm5/linux-oracle-repo/OracleLinux/OL6/openstack10/x86_64/getPackage/PyYAML-3.10-3.el6.x86_64.rpm"
+
+# Cobbler Server部署需要的离线安装包的目录
+# 该路径下存放的RPM为：在“在线”安装的时候由脚本自动下载的EPEL和PyYAML的RPM文件，以及YUM安装过程中，缓存本地的软件包
+path_offline_rpm="$path_execute_dir/cobbler_server_offline"
+
 # -----------------------------
 # 运行时
+
+# 0. 准备
+# -- a. 挂载光盘介质，在我的这个脚本中，我默认挂载到：/iso
+# -- b. 如果离线安装，需要准备好离线软件包的存放目录；离线的软件包介质，来自于上一次你成功的在线安装时的本地RPM缓存
+# -- c. 确认YUM源的获取方式，本地？还是，远端服务器
+
+# 以上几点确认无误后，就可以运行脚本了。
 
 # 1. 主机名
 func_replace "$file_sys_network" "HOSTNAME" "$cust_machine_hostname" "="
@@ -427,29 +497,39 @@ do_enable_yum_keepcache
 # 6. 配置YUM源文件
 do_yum_repo
 
+# 在线部署需要的软件包
+# Version 1
+# 开始
+# ===============================================
 # 7. EPEL and PyYAML
 # EPEL
-rm -rf /tmp/epel*
+#rm -rf /tmp/epel*
 
-#wget -P /tmp http://mirrors.ustc.edu.cn/fedora/epel/6/x86_64/epel-release-6-8.noarch.rpm
-wget -P /tmp https://dl.fedoraproject.org/pub/epel/epel-release-latest-6.noarch.rpm
+##wget -P /tmp http://mirrors.ustc.edu.cn/fedora/epel/6/x86_64/epel-release-6-8.noarch.rpm
+#wget -P /tmp https://dl.fedoraproject.org/pub/epel/epel-release-latest-6.noarch.rpm
 
-rpm -e epel-release
-rpm -ivh /tmp/epel-release*.rpm
+#rpm -e epel-release
+#rpm -ivh /tmp/epel-release*.rpm
 
 # PyYAML
-rm -rf /tmp/PyYAML*
+#rm -rf /tmp/PyYAML*
 
-wget -P /tmp ftp://ftp.icm.edu.pl/vol/rzm5/linux-oracle-repo/OracleLinux/OL6/openstack10/x86_64/getPackage/PyYAML-3.10-3.el6.x86_64.rpm
+#wget -P /tmp ftp://ftp.icm.edu.pl/vol/rzm5/linux-oracle-repo/OracleLinux/OL6/openstack10/x86_64/getPackage/PyYAML-3.10-3.el6.x86_64.rpm
 
-rpm --nodeps -e PyYAML
-yum install -y libyaml*
-rpm -ivh /tmp/PyYAML*.rpm
+#rpm --nodeps -e PyYAML
+#yum install -y libyaml*
+#rpm -ivh /tmp/PyYAML*.rpm
+# ===============================================
+#结束
 
-# 8. 刷新YUM库
-do_yum_refresh
+# Version 2
+# 在线安装
+#do_install_addition_rpm online
+# 离线安装
+do_install_addition_rpm offline
 
 # 9. Yum安装Cobbler及其关联的软件包
+do_yum_refresh
 yum install -y cobbler cobbler-web xinetd pykickstart cman dhcp tftp-server bind
 
 # 10. YUM安装完成后需要启用的服务
