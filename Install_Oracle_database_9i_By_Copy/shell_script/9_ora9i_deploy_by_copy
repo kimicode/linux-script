@@ -64,7 +64,12 @@ su - oracle -c "lsnrctl start"
 
 echo "@@@ DBCA: create instance"
 
-env | grep DISPLAY && xhost + && su - oracle -c "dbca -silent -createDatabase -templateName General_Purpose.dbc -gdbname mcht -sid mcht -datafileDestination /oradata -responseFile NO_VALUE -characterSet WE8ISO8859P1"
+vncserver <<EOF
+oracle
+oracle
+EOF
+
+su - oracle -c "export DISPLAY=:1; xhost +; dbca -silent -createDatabase -templateName General_Purpose.dbc -gdbname mcht -sid mcht -datafileDestination /oradata -responseFile NO_VALUE -characterSet WE8ISO8859P1"
 
 echo "--- DBCA: creation done."
 echo "**********************************"
@@ -105,7 +110,7 @@ EOF
 
 # Imp
 # 1. get exp data
-wget -P $source_file_path/exp_mcht_backup_20160225.dmp $download_file_path
+wget -P $source_file_path/exp_mcht_backup_20160225.dmp $file_path_store
 
 # do import
 echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
