@@ -279,6 +279,7 @@ f_clear_dir $config_file_yum_dirname
 # list of yum config file
 list_yum_repo="iso.repo"
 repo_source_path=ftp://192.168.56.132/redhat/linux/rhel5u10
+repo_source_path=http://166.100.0.253/cobbler/ks_mirror/RHEL5-8-x86_64
 
 # ACTION: Prepare yum repo file
 echo "######################################"

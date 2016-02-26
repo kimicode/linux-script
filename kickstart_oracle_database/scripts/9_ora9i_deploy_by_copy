@@ -1,0 +1,63 @@
+# file: 9_ora9i_deploy_by_copy
+
+source_file_path="http://166.100.0.253/oracle_9i_copy_install/"
+list_file="jre_4.tar oracle9i_20131212.gz"
+
+file_path_store="/software/oracle_media"
+
+var_oracle_base=`su - oracle -c "env | grep "ORACLE_BASE" | cut -d'=' -f2"`
+var_ora_home=`su - oracle -c "env | grep ORACLE_HOME" | cut -d'=' -f2`
+
+script_root_path=$var_ora_home/root.sh
+
+path_ora_listener=$var_ora_home/network/admin/listener.ora
+
+var_eth0_ip=`ifconfig eth0 | grep "inet addr" | cut -d':' -f2 | cut -d' ' -f1`
+
+for file_item in $list_file
+do
+   download_file_path=$source_file_path/$file_item
+   local_file_path=$file_path_store/$file_item
+
+   echo "@@@ file: $file_item"
+   echo "---- path: $file_path"
+   echo ""
+
+   echo "@@@ wget begin"
+   echo "**********************************"
+   wget -P $file_path_store $download_file_path
+   echo ""
+
+   echo "@@@ unzip tar"
+   echo "**********************************"
+   case "$file_item" in
+   "jre_4.tar" )
+     tar -xzvf $local_file_path -C /
+   ;;
+   "oracle9i_20131212.gz" )
+     tar -xzvf $local_file_path -C $var_oracle_base
+   ;;
+   esac
+   echo ""
+done
+
+# execute root.sh
+# execute: root.sh
+echo "--------------"
+echo "execute: $script_root_path"
+
+echo "*************"
+$script_root_path <<SCRIPT
+/usr/local/bin
+
+SCRIPT
+echo "*************"
+
+echo "@@@ $script_root_path, has been Done"
+echo ""
+
+echo "@@@ config: change listener.ora"
+sed -s "s/169.0.2.1/$var_eth0_ip/g" $path_ora_listener
+
+echo "@@@ startup: listener"
+su - oracle -c "lsnrctl start"

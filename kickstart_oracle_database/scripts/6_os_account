@@ -186,12 +186,12 @@ export PATH
 
 # for Oracle database
 
-export ORACLE_SID=edendb1;
-export ORACLE_UNQNAME=edendb;
+export ORACLE_SID=mcht;
+#export ORACLE_UNQNAME=edendb;
 export JAVA_HOME=/usr/local/java;
-export ORACLE_BASE=/u01/app/oracle;
+export ORACLE_BASE=/home/app/oracle;
 export ORACLE_HOME=\$ORACLE_BASE/product/10.0.2/dbhome_1;
-export ORACLE_PATH=/u01/app/common/oracle/sql;
+export ORACLE_PATH=/home/app/common/oracle/sql;
 export ORACLE_TERM=xterm;
 export NLS_DATE_FORMAT="DD-MON-YYYY HH24:MI:SS";
 export TNS_ADMIN=\$ORACLE_HOME/network/admin;
@@ -199,7 +199,7 @@ export ORA_NLS11=\$ORACLE_HOME/nls/data;
  
 PATH=.:\${JAVA_HOME}/bin:\${PATH}:\$HOME/bin:\$ORACLE_HOME/bin
 PATH=\${PATH}:/usr/bin:/bin:/usr/bin/X11:/usr/local/bin
-PATH=\${PATH}:/u01/app/common/oracle/bin
+PATH=\${PATH}:/home/app/common/oracle/bin
 export PATH
  
 LD_LIBRARY_PATH=\$ORACLE_HOME/lib
@@ -283,10 +283,12 @@ EOF
 # @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 # Variable
 # list of user
-list_user="oracle grid"
+#list_user="oracle grid"
+list_user="oracle"
 
 # list of group
-list_group="oinstall dba oper asmdba asmadmin asmoper"
+#list_group="oinstall dba oper asmdba asmadmin asmoper"
+list_group="oinstall dba oper"
 
 # @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 
@@ -374,15 +376,15 @@ echo "@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@"
 for item_u in $list_user
 do
    var_oracle_base=`su - $item_u -c "env | grep "ORACLE_BASE" | cut -d'=' -f2"`
-   var_oracle_home=`su - $item_u -c "env | grep "ORACLE_HOME" | cut -d'=' -f2"`
+   #var_oracle_home=`su - $item_u -c "env | grep "ORACLE_HOME" | cut -d'=' -f2"`
 
    # do delete
    f_delete_dir $var_oracle_base
-   f_delete_dir $var_oracle_home
+   #f_delete_dir $var_oracle_home
 
    # do make
    mkdir -p $var_oracle_base
-   mkdir -p $var_oracle_home
+   #mkdir -p $var_oracle_home
    echo "$item_u, directories, has been CREATE."
 
    # do change mode
@@ -392,7 +394,7 @@ do
 
    # do change owner
    chown -R $item_u.oinstall $var_oracle_base
-   chown -R $item_u.oinstall $var_oracle_home
+   #chown -R $item_u.oinstall $var_oracle_home
    echo "$item_u, directories, has been CHANGE OWNER."
 
 done
