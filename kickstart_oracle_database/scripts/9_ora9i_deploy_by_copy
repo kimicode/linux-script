@@ -61,3 +61,59 @@ sed -s "s/169.0.2.1/$var_eth0_ip/g" $path_ora_listener
 
 echo "@@@ startup: listener"
 su - oracle -c "lsnrctl start"
+
+echo "@@@ DBCA: create instance"
+su - oracle -c "dbca -silent -createDatabase -templateName General_Purpose.dbc -gdbname mcht -sid mcht -datafileDestination /oradata -responseFile NO_VALUE -characterSet WE8ISO8859P1"
+
+echo "--- DBCA: creation done."
+echo "**********************************"
+ps -ef | grep --color ora_
+echo "**********************************"
+echo ""
+
+# Create tablespace and user prepare for import data by imp
+
+# check source db:
+# sql:
+# 1. select userenv('language') from dual; ,for NLS_LANG
+# 2. select username,default_tablespace from dba_users; ,for create user
+# 3. select tablespace_name,sum(bytes)/1024/1024 as "MB" from dba_data_files group by tablespace_name order by tablespace_name; ,for create tablespace
+# 4.
+# set linesize 300
+# col file_name for a80
+# select tablespace_name,file_name,bytes/1024/1024 as "MB" from dba_data_files order by 1,2;
+
+sqlplus "/ as sysdba" <<EOF
+create tablespace DATA_SPC datafile '/oradata/mcht/data_spc_1.dbf' size 8192M;
+alter tablespace DATA_SPC add datafile '/oradata/mcht/data_spc_2.dbf' size 8192M;
+alter tablespace DATA_SPC add datafile '/oradata/mcht/data_spc_3.dbf' size 8192M;
+
+create tablespace INDX_SPC datafile '/oradata/mcht/indx_spc_1.dbf' size 8192M;
+create tablespace PERS_SPC datafile '/oradata/mcht/pers_spc_1.dbf' size 2048M;
+create tablespace RBSG_SPC datafile '/oradata/mcht/rbsg_spc_1.dbf' size 9216M;
+create tablespace TOOLS_SPC datafile '/oradata/mcht/tools_spc_1.dbf' size 2048M;
+
+create user DBLINKUSR identified by future default tablespace DATA_SPC;
+create user FUTUREPOS identified by future default tablespace DATA_SPC;
+create user BI identified by future default tablespace DATA_SPC;
+
+create user OUTLN identified by future default tablespace system;
+create user WMSYS identified by future default tablespace system;
+
+EOF
+
+# Imp
+# 1. get exp data
+wget -P "$source_file_path/exp_mcht_backup_20160225.dmp" "$download_file_path"
+
+# do import
+echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
+echo "Import begin: `date`"
+echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
+su - oracle -c "imp system/oracle file=$download_file_path/exp_mcht_backup_20160225.dmp buffer=4096000 log=$download_file_path/imp_mcht.log full=y ignore=y"
+
+echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
+echo "Import end: `date`"
+echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
+
+# End.
