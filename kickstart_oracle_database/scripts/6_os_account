@@ -43,7 +43,7 @@ f_drop_group() {
    if [[ $user_in_group != "" ]]
    then
         echo "group: $group_name, is IN USE."
-        
+
         #delete relative user,before delete group
         for each_user in $user_in_group
         do
@@ -196,25 +196,25 @@ export ORACLE_TERM=xterm;
 export NLS_DATE_FORMAT="DD-MON-YYYY HH24:MI:SS";
 export TNS_ADMIN=\$ORACLE_HOME/network/admin;
 export ORA_NLS11=\$ORACLE_HOME/nls/data;
- 
+
 PATH=.:\${JAVA_HOME}/bin:\${PATH}:\$HOME/bin:\$ORACLE_HOME/bin
 PATH=\${PATH}:/usr/bin:/bin:/usr/bin/X11:/usr/local/bin
 PATH=\${PATH}:/home/app/common/oracle/bin
 export PATH
- 
+
 LD_LIBRARY_PATH=\$ORACLE_HOME/lib
 LD_LIBRARY_PATH=\${LD_LIBRARY_PATH}:\$ORACLE_HOME/oracm/lib
 LD_LIBRARY_PATH=\${LD_LIBRARY_PATH}:/lib:/usr/lib:/usr/local/lib
 export LD_LIBRARY_PATH
- 
+
 CLASSPATH=\$ORACLE_HOME/JRE
 CLASSPATH=\${CLASSPATH}:\$ORACLE_HOME/jlib
 CLASSPATH=\${CLASSPATH}:\$ORACLE_HOME/rdbms/jlib
 CLASSPATH=\${CLASSPATH}:\$ORACLE_HOME/network/jlib
 export CLASSPATH
- 
+
 export THREADS_FLAG=native;
- 
+
 export TEMP=/tmp
 export TMPDIR=/tmp
 
@@ -251,25 +251,25 @@ export ORACLE_TERM=xterm;
 export NLS_DATE_FORMAT="DD-MON-YYYY HH24:MI:SS";
 export TNS_ADMIN=\$ORACLE_HOME/network/admin;
 export ORA_NLS11=\$ORACLE_HOME/nls/data;
- 
+
 PATH=.:\${JAVA_HOME}/bin:\${PATH}:\$HOME/bin:\$ORACLE_HOME/bin
 PATH=\${PATH}:/usr/bin:/bin:/usr/bin/X11:/usr/local/bin
 PATH=\${PATH}:/u01/app/common/oracle/bin
 export PATH
- 
+
 LD_LIBRARY_PATH=\$ORACLE_HOME/lib
 LD_LIBRARY_PATH=\${LD_LIBRARY_PATH}:\$ORACLE_HOME/oracm/lib
 LD_LIBRARY_PATH=\${LD_LIBRARY_PATH}:/lib:/usr/lib:/usr/local/lib
 export LD_LIBRARY_PATH
- 
+
 CLASSPATH=\$ORACLE_HOME/JRE
 CLASSPATH=\${CLASSPATH}:\$ORACLE_HOME/jlib
 CLASSPATH=\${CLASSPATH}:\$ORACLE_HOME/rdbms/jlib
 CLASSPATH=\${CLASSPATH}:\$ORACLE_HOME/network/jlib
 export CLASSPATH
- 
+
 export THREADS_FLAG=native;
- 
+
 export TEMP=/tmp
 export TMPDIR=/tmp
 
@@ -287,8 +287,7 @@ EOF
 list_user="oracle"
 
 # list of group
-#list_group="oinstall dba oper asmdba asmadmin asmoper"
-list_group="oinstall dba oper"
+list_group="oinstall dba oper asmdba asmadmin asmoper"
 
 # @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 
