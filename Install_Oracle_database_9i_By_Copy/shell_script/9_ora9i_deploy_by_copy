@@ -64,12 +64,14 @@ su - oracle -c "lsnrctl start"
 
 echo "@@@ DBCA: create instance"
 
-vncserver <<EOF
-oracle
-oracle
-EOF
+#vncserver <<EOF
+#oracle
+#oracle
+#EOF
 
-su - oracle -c "export DISPLAY=:1; xhost +; dbca -silent -createDatabase -templateName General_Purpose.dbc -gdbname mcht -sid mcht -datafileDestination /oradata -responseFile NO_VALUE -characterSet WE8ISO8859P1"
+xhost local:oracle
+
+su - oracle -c "dbca -silent -createDatabase -templateName General_Purpose.dbc -gdbname mcht -sid mcht -datafileDestination /oradata -responseFile NO_VALUE -characterSet WE8ISO8859P1"
 
 echo "--- DBCA: creation done."
 echo "**********************************"
