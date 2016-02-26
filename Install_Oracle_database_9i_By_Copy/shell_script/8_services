@@ -1,0 +1,54 @@
+# Script: 3_services
+
+# list of services
+list_service="bluetooth iptables ip6tables sendmail smartd yum-updatesd"
+
+# loop the list
+for item in $list_service
+do
+
+  echo "-----------"
+
+  # variable
+  chkconfig_item=`chkconfig --list $item | awk -F" " '{for(i=1;i<=NF;i++) printf("%s\n",$i);}'`
+
+  for chk_item in $chkconfig_item
+  do
+    if [[ `echo $chk_item | grep ":"` != "" ]]
+    then
+       # variable
+       sys_level_num=`echo $chk_item | cut -d':' -f1`
+       sys_stat=`echo $chk_item | cut -d':' -f2`
+       str_sys_stat="NO"
+
+       if [[ $sys_stat = "on" ]]
+       then
+          # reset variable
+          str_sys_stat="YES"
+ 
+          # do chkconfig, change startup policy
+          chkconfig $item --level $sys_level_num off
+
+          echo -e "system level: \033[31;44;1m $sys_level_num \033[0m, status: \033[31;44;1m $str_sys_stat \033[0m <--- changed"
+
+       else
+         echo -e "system level: \033[31;44;1m $sys_level_num \033[0m, status: \033[31;44;1m $str_sys_stat \033[0m"
+       fi
+
+
+    else
+       echo "Service: $chk_item"
+       echo "####################"
+
+    fi
+
+  done
+
+  echo ""
+  echo "Service Status:"
+  echo "----------------------------------------------"
+  chkconfig --list $item
+  echo "----------------------------------------------"
+  echo ""
+
+done

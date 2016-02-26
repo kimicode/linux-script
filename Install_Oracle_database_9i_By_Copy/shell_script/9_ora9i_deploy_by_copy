@@ -1,6 +1,6 @@
 # file: 9_ora9i_deploy_by_copy
 
-source_file_path="http://166.100.0.253/oracle_9i_copy_install/"
+source_file_path="http://166.100.0.253/oracle_9i_copy_install"
 list_file="jre_4.tar oracle9i_20131212.gz"
 
 file_path_store="/software/oracle_media"
@@ -63,7 +63,8 @@ echo "@@@ startup: listener"
 su - oracle -c "lsnrctl start"
 
 echo "@@@ DBCA: create instance"
-su - oracle -c "dbca -silent -createDatabase -templateName General_Purpose.dbc -gdbname mcht -sid mcht -datafileDestination /oradata -responseFile NO_VALUE -characterSet WE8ISO8859P1"
+
+env | grep DISPLAY && xhost + && su - oracle -c "dbca -silent -createDatabase -templateName General_Purpose.dbc -gdbname mcht -sid mcht -datafileDestination /oradata -responseFile NO_VALUE -characterSet WE8ISO8859P1"
 
 echo "--- DBCA: creation done."
 echo "**********************************"
@@ -104,7 +105,7 @@ EOF
 
 # Imp
 # 1. get exp data
-wget -P "$source_file_path/exp_mcht_backup_20160225.dmp" "$download_file_path"
+wget -P $source_file_path/exp_mcht_backup_20160225.dmp $download_file_path
 
 # do import
 echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"

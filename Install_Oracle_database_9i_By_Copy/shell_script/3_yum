@@ -1,0 +1,320 @@
+# Script: 8_yum
+
+# @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+# Function
+# ====================================
+f_config_yum_repo() {
+  #variable
+  #$1, repo file dirname
+  #$2, repo file name
+  #$3, repo source path
+  # -- OPTION -- $3, linux release, [option]
+  repo_dir=$1
+  repo_name=$2
+  repo_source_path=$3
+
+  #os_release=$3
+
+  #linux os, release
+  config_file_release=/etc/redhat-release
+  os_release=`cat $config_file_release | sed 's/[[:space:]]/\n/g' | awk -v FS="" '{print $1}' | awk '{ for (i=1;i<=NF;i++) if($i != "S" && $i != "r" && $i != "(" ) {printf $i}}END{printf "\n"}'`
+
+  #signal string
+  signal_str=$os_release-$repo_name
+  echo "### Signal: $signal_str ###"
+
+  #full path
+  full_repo_path=$repo_dir/$repo_name
+
+  echo ""
+  echo "-----------------------"
+  echo "repo file: $full_repo_path"
+  echo "-----------------------"
+
+#%%%%%%%%%%%%%%%%%%
+  case "$signal_str" in
+# ****************** CASE1
+  "RHEL5-iso.repo" )
+    echo "change: $repo_name"
+#-----------
+cat <<EOF > $full_repo_path
+[Server]
+name=Server
+baseurl=$repo_source_path/Server
+gpgcheck=0
+
+[VT]
+name=VT
+baseurl=$repo_source_path/VT
+gpgcheck=0
+
+[Cluter]
+name=Cluster
+baseurl=$repo_source_path/Cluster
+gpgchech=0
+
+[ClusterStorage]
+name=ClusterStorage
+baseurl=$repo_source_path/ClusterStorage
+gpgcheck=0
+
+EOF
+#-----------
+    echo "$repo_name, has been DONE."
+    echo "REPO file: $full_repo_path, Details:"
+    echo "@@@@@@"
+    cat $full_repo_path
+    echo "@@@@@@"
+    echo ""
+  ;;
+
+# ****************** CASE2
+  "RHEL5-epel.repo" )
+    echo "change: $repo_name"
+#-----------
+cat <<EOF > $full_repo_path
+[epel]
+name=Extra Packages for Enterprise Linux 5 - $basearch
+#baseurl=http://download.fedoraproject.org/pub/epel/5/$basearch
+mirrorlist=http://mirrors.fedoraproject.org/mirrorlist?repo=epel-5&arch=$basearch
+failovermethod=priority
+enabled=1
+gpgcheck=1
+gpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-EPEL
+
+[epel-debuginfo]
+name=Extra Packages for Enterprise Linux 5 - $basearch - Debug
+#baseurl=http://download.fedoraproject.org/pub/epel/5/$basearch/debug
+mirrorlist=http://mirrors.fedoraproject.org/mirrorlist?repo=epel-debug-5&arch=$basearch
+failovermethod=priority
+enabled=0
+gpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-EPEL
+gpgcheck=1
+
+[epel-source]
+name=Extra Packages for Enterprise Linux 5 - $basearch - Source
+#baseurl=http://download.fedoraproject.org/pub/epel/5/SRPMS
+mirrorlist=http://mirrors.fedoraproject.org/mirrorlist?repo=epel-source-5&arch=$basearch
+failovermethod=priority
+enabled=0
+gpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-EPEL
+gpgcheck=1
+
+EOF
+#-----------
+    echo "$repo_name, has been DONE."
+    echo "REPO file: $full_repo_path, Details:"
+    echo "@@@@@@"
+    cat $full_repo_path
+    echo "@@@@@@"
+    echo ""
+  ;;
+
+  esac
+#%%%%%%%%%%%%%%%%%%
+
+}
+
+# ====================================
+
+f_clear_dir() {
+ #variable
+ #$1,directory
+ dir_path=$1
+
+ #support variable
+ dir_backup=/backup
+
+ echo ""
+ echo "@@@ dir is: $dir_path"
+
+ data_in_dir=`ls $dir_path`
+
+ #is null
+ if [[ $data_in_dir != "" ]]
+ then
+    echo "--- dir:$dir_path, is NOT NULL."
+
+    # do mv
+    mv $dir_path/* $dir_backup
+    echo "--- all file or directory under $dir_path, has been MOVE to $dir_backup"
+
+ else
+    echo "--- dir:$dir_path, is NULL."
+ fi
+
+ echo ""
+
+}
+
+# ====================================
+
+f_config_yum_conf() {
+   #variable
+   #$1, yum config file
+   yum_conf=$1
+
+   # Action: default enable YUM Cache, and Cache in: /software/yum_cachedata
+   yum_conf_record=`cat $yum_conf | grep -v ^# | grep '=' | cut -d'=' -f1`
+
+   # loop records
+   for record in $yum_conf_record
+   do
+      f_config_yum_conf_record $yum_conf $record
+
+   done
+
+}
+
+f_config_yum_conf_record() {
+   #variable
+   #$1, yum conf file
+   #$2, record type
+   conf_file=$1
+   record_type=$2
+
+   # do change
+   case "$record_type" in
+     "cachedir" )
+        #variable
+        old_cachedir=`cat $conf_file | grep -v ^# | grep "cachedir" | cut -d'=' -f2`
+        new_cachedir=/software/yum_cachedata
+        #new_cachedir_for_sed=$(echo $new_cachedir |sed -e 's/\//\\\//g')
+
+        # do change
+        sed -i "s%cachedir=$old_cachedir%cachedir=$new_cachedir%" $conf_file
+        echo "@@@ $conf_dir, record: cachedir, has been CHANGE."
+     ;;
+
+     "keepcache" )
+        #variable
+        old_keepcache=`cat $conf_file | grep -v ^# | grep "keepcache" | cut -d'=' -f2`
+
+        # do change
+        sed -i "s/keepcache=$old_keepcache/keepcache=1/" $conf_file
+        echo "@@@ $conf_dir, record: keepcache, has been CHANGE."
+     ;;
+   esac
+
+}
+
+# ====================================
+
+f_init_yum_repo() {
+   #do action
+   
+   #yum clear repo data
+   yum clean metadata
+   echo "@@@@ YUM Metadata, CLEAN."
+
+   yum clean all
+   echo "@@@@ YUM All, CLEAN."
+
+   #yum init repo data
+   echo "YUM Repo List:"
+   echo "----------"
+   yum repolist
+   echo "----------"
+   echo "@@@@ YUM Repo List, DONE."
+
+   echo ""
+
+}
+
+# ====================================
+
+f_yum_install() {
+  #variable
+  #$1, way to install
+  the_way=$1
+
+  #linux os, release
+  config_file_release=/etc/redhat-release
+  os_release=`cat $config_file_release | sed 's/[[:space:]]/\n/g' | awk -v FS="" '{print $1}' | awk '{ for (i=1;i<=NF;i++) if($i != "S" && $i != "r" && $i != "(" ) {printf $i}}END{printf "\n"}'`
+
+  #signal string
+  #eg: RHEL5-oracle
+  signal_str=$os_release-$the_way
+  echo "### Signal: $signal_str ###"
+
+# ----------
+  case "$signal_str" in
+  "RHEL5-oracle" )
+     # do install
+     echo "@@@@@@@@@@@@@@@"
+     yum install -y binutils* compat-db setarch compat-libstdc++-* control-center elfutils-libelf-* elfutils-libelf-devel-* elfutils-libelf-devel-static-* gcc-* gcc-c++-* glibc-* glibc-common-* glibc-devel-* glibc-headers-* ksh libaio-* libaio-devel-* libgcc libstdc++-* libstdc++-devel make sysstat unixODBC unixODBC-devel compat-libstdc++-33.i386 compat-libstdc++-296.i386 glibc.i686 glibc-devel.i386 unixODBC.i386 unixODBC-devel.i386 libaio.i386 libaio-devel.i386 libgcc.i386 libstdc++.i386 libstdc++-devel.i386 libaio-devel.i386 libXp.i386 iscsi* scsi* createrepo
+
+     echo "@@@@@@@@@@@@@@@"
+     echo "YUM Install: RHEL5-oracle, DONE."
+  ;;
+
+  esac
+# ----------
+
+}
+
+# ====================================
+# @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+# variable
+
+# file path
+config_file_yum_dirname=/etc/yum.repos.d
+config_file_yum_conf=/etc/yum.conf
+
+
+# ACTION: Config YUM self
+echo "######################################"
+echo "Config YUM Conf file: $config_file_yum_conf"
+echo "######################################"
+echo ""
+f_config_yum_conf $config_file_yum_conf
+
+# ACTION: Clear directory
+echo "######################################"
+echo "CHECK YUM REPO BASE: $config_file_yum_dirname"
+echo "######################################"
+echo ""
+f_clear_dir $config_file_yum_dirname
+
+# list of yum config file
+list_yum_repo="iso.repo"
+repo_source_path=ftp://192.168.56.132/redhat/linux/rhel5u10
+repo_source_path=http://166.100.0.253/cobbler/ks_mirror/RHEL5-8-x86_64
+
+# ACTION: Prepare yum repo file
+echo "######################################"
+echo "YUM REPO File"
+echo "######################################"
+echo ""
+
+# loop the list
+for item in $list_yum_repo
+do
+   f_config_yum_repo $config_file_yum_dirname $item $repo_source_path
+
+done
+
+# ACTION: INIT YUM REPO database
+echo "######################################"
+echo "YUM INIT REPO Data"
+echo "######################################"
+echo ""
+f_init_yum_repo
+
+# ACTION: Prepare yum repo file
+echo "######################################"
+echo "YUM: INSTALL RPMs"
+echo "######################################"
+echo ""
+
+# list of ways, how to install rpm by YUM
+# oracle, means INSTALL Oracle Database, Linux RPMs
+yum_install_way="oracle"
+
+# loop the list
+for item in $yum_install_way
+do
+  f_yum_install $yum_install_way
+done
+
+# @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@

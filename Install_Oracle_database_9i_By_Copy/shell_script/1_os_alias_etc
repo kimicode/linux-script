@@ -1,0 +1,29 @@
+# Script: 1_os_alias_etc
+
+# Alias
+# rm cp mv, no interactive
+list_alias_cmd="rm cp mv"
+config_file_alias=/root/.bashrc
+
+for item_alias in $list_alias_cmd
+do
+   echo "----------"
+
+   bool_alias=`cat $config_file_alias | grep "$item_alias -i"`
+
+   if [[ $bool_alias != "" ]]
+   then
+     echo "@@@ record:$item_alias -i, CAN be found in $config_file_alias, FALSE."
+     sed -i "s/$item_alias -i/$item_alias/" $config_file_alias
+     echo "@@@ change $item_alias, no interactive, DONE."
+
+     # status
+     echo "-------------"
+     cat $config_file_alias | grep --color "alias $item_alias"
+
+   else
+     echo "@@@ record:$item_alias -i, CAN NOT be found in $config_file_alias, FALSE."
+   fi
+
+   echo ""
+done

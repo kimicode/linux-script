@@ -1,0 +1,45 @@
+# Script: 2_dir
+
+# list of dir
+list_dir="/iso /temp_me /software /backup /script"
+
+# cursor the list
+for item in $list_dir
+do
+   echo "----------"
+
+   # if exsist
+   if [ -d "$item" ]
+   then
+      echo "@@@ directory: $item, EXSIST."
+
+      # delete
+      rm -rf $item
+
+      # delete: result
+      echo "@@@ directory: $item, has been DELETE."
+
+   else
+      echo "@@@ direcotry: $item, NOT FOUND."
+
+   fi
+
+   # make directory
+   mkdir -p $item
+
+   # make directory: result
+   echo "@@@ directory: $item, has been CREATE."
+
+   # change mode
+   chmod -R 777 $item
+   echo "@@@ directory: $item, has been CHANGE MODE."
+
+   # display result
+   echo ""
+   echo "Directory Status:"
+   echo "----------"
+   ls -ldtr --time-style="+%Y-%m-%d %H:%M |" $item | grep --color $item
+
+   echo ""
+
+done

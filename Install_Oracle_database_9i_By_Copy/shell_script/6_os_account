@@ -1,0 +1,401 @@
+# Script: 6_os_account
+
+# @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+# Function
+
+f_delete_dir() {
+  #variable
+  #$1, dir_path
+  dir_path=$1
+
+  # do delete
+  if [ -d "$dir_path" ]
+  then
+        echo "------"
+        echo "Result:: directory $dir_path, EXSIST."
+
+        echo "------"
+        rm -rf $dir_path
+        echo "Result:: directory $dir_path, DELETE."
+  else
+        echo "------"
+        echo "Result:: directory $dir_path, is NOT EXSIST."
+  fi
+
+}
+
+# Desc:
+# before delete group, you need delete user first
+# before create user, you need create group first
+# Relation: USER > GROUP
+# ----------------
+# Group
+# Func: drop_group
+# Func: add_group
+# Desc: drop group, befor add
+
+f_drop_group() {
+   #variable
+   group_name=$1
+   user_in_group=`f_list_user_in_group $group_name`
+
+   # is group in use
+   if [[ $user_in_group != "" ]]
+   then
+        echo "group: $group_name, is IN USE."
+
+        #delete relative user,before delete group
+        for each_user in $user_in_group
+        do
+          echo ""
+          echo "**********"
+          echo "user:$each_user in group:$group_name"
+          echo "**********"
+          echo ""
+          f_drop_user $each_user
+          echo "user:$each_user in group:$group_name, has been RELATIVE DELETE."
+
+        done
+
+   else
+        echo "group: $group_name, is NOT IN USE."
+   fi
+
+   # is group exsist
+   for item in `cat /etc/group | cut -d':' -f1`
+   do
+      if [ $item = $group_name ]
+      then
+         echo "------"
+         echo "group: $group_name, EXSIST."
+
+         # do delete
+         groupdel $group_name
+         echo "group: $group_name, has been DELETE."
+
+      #else
+         #echo "group: $group_name, NOT EXSIST."
+      fi
+   done
+}
+
+f_add_group() {
+   #variable
+   group_name=$1
+
+   #drop before add
+   f_drop_group $group_name
+
+   #do add
+   groupadd $group_name
+   echo "group: $group_name, has been CREATE."
+
+}
+
+f_list_user_in_group() {
+   #variable
+   group_name=$1
+   group_id=`cat /etc/group | grep "$group_name" | cut -d':' -f3`
+
+   if [[ $group_id != "" ]]
+   then
+     #do list
+     cat /etc/passwd | grep "$group_id" | cut -d':' -f1
+   fi
+}
+
+# ----------------
+# User
+# Func: drop_user
+# Func: add_user
+# Desc: drop user, before add
+
+f_drop_user() {
+   #variable
+   user_name=$1
+
+   #is user exsist
+   for item in `cat /etc/passwd | cut -d':' -f1`
+   do
+     if [ $item = $user_name ]
+     then
+        echo "------"
+        echo "user: $user_name, EXSIST."
+        # do delete
+        userdel $user_name
+        rm -rf /var/spool/mail/$user_name
+        rm -rf /home/$user_name
+        echo "user: $user_name, has been DELETE."
+
+     #else
+        #echo "user: $user_name, NOT EXSIST."
+     fi
+   done
+
+}
+
+f_add_user() {
+   #variable
+   user_name=$1
+
+   #drop before add
+   f_drop_user $user_name
+
+   #do add
+   if [ $user_name = "oracle" ]
+   then
+      useradd -m -u 1101 -g oinstall -G dba,oper,asmdba -c "Oracle Software Owner" $user_name
+   elif [ $user_name = "grid" ]
+   then
+      useradd -m -u 1100 -g oinstall -G asmadmin,asmdba,asmoper -c "Grid Infrastructure Owner" $user_name
+   else
+      useradd $user_name
+      echo "user: $user_name, ADD."
+   fi
+
+   #set password
+   echo "oracle" | passwd --stdin $user_name
+   echo "user: $user_name, password has been SET."
+}
+
+# ----------------
+# Func: define_user_env
+
+f_user_env() {
+  #variable
+  user_name=$1
+  config_file_user_env=/home/$user_name/.bash_profile
+
+  case "$user_name" in
+  "oracle" )
+#@@@@@@@@@@
+cat <<EOF > $config_file_user_env
+# Default
+# .bash_profile
+
+# Get the aliases and functions
+if [ -f ~/.bashrc ]; then
+        . ~/.bashrc
+fi
+
+# User specific environment and startup programs
+
+PATH=$PATH:$HOME/bin
+
+export PATH
+
+# for Oracle database
+
+export ORACLE_SID=mcht;
+#export ORACLE_UNQNAME=edendb;
+export JAVA_HOME=/usr/local/java;
+export ORACLE_BASE=/home/app/oracle;
+export ORACLE_HOME=\$ORACLE_BASE/product/10.0.2/dbhome_1;
+export ORACLE_PATH=/home/app/common/oracle/sql;
+export ORACLE_TERM=xterm;
+export NLS_DATE_FORMAT="DD-MON-YYYY HH24:MI:SS";
+export TNS_ADMIN=\$ORACLE_HOME/network/admin;
+export ORA_NLS11=\$ORACLE_HOME/nls/data;
+
+PATH=.:\${JAVA_HOME}/bin:\${PATH}:\$HOME/bin:\$ORACLE_HOME/bin
+PATH=\${PATH}:/usr/bin:/bin:/usr/bin/X11:/usr/local/bin
+PATH=\${PATH}:/home/app/common/oracle/bin
+export PATH
+
+LD_LIBRARY_PATH=\$ORACLE_HOME/lib
+LD_LIBRARY_PATH=\${LD_LIBRARY_PATH}:\$ORACLE_HOME/oracm/lib
+LD_LIBRARY_PATH=\${LD_LIBRARY_PATH}:/lib:/usr/lib:/usr/local/lib
+export LD_LIBRARY_PATH
+
+CLASSPATH=\$ORACLE_HOME/JRE
+CLASSPATH=\${CLASSPATH}:\$ORACLE_HOME/jlib
+CLASSPATH=\${CLASSPATH}:\$ORACLE_HOME/rdbms/jlib
+CLASSPATH=\${CLASSPATH}:\$ORACLE_HOME/network/jlib
+export CLASSPATH
+
+export THREADS_FLAG=native;
+
+export TEMP=/tmp
+export TMPDIR=/tmp
+
+EOF
+#@@@@@@@@@@
+  ;;
+
+  "grid" )
+#@@@@@@@@@@
+cat <<EOF > $config_file_user_env
+#Default
+# .bash_profile
+
+# Get the aliases and functions
+if [ -f ~/.bashrc ]; then
+        . ~/.bashrc
+fi
+
+# User specific environment and startup programs
+
+PATH=$PATH:$HOME/bin
+
+export PATH
+
+# for Oracle database
+
+# Grid Node1
+export ORACLE_SID=+ASM1;
+export JAVA_HOME=/usr/local/java;
+export ORACLE_BASE=/u01/app/grid;
+export ORACLE_HOME=/u01/app/10.0.2/grid;
+export ORACLE_PATH=/u01/app/oracle/common/oracle/sql;
+export ORACLE_TERM=xterm;
+export NLS_DATE_FORMAT="DD-MON-YYYY HH24:MI:SS";
+export TNS_ADMIN=\$ORACLE_HOME/network/admin;
+export ORA_NLS11=\$ORACLE_HOME/nls/data;
+
+PATH=.:\${JAVA_HOME}/bin:\${PATH}:\$HOME/bin:\$ORACLE_HOME/bin
+PATH=\${PATH}:/usr/bin:/bin:/usr/bin/X11:/usr/local/bin
+PATH=\${PATH}:/u01/app/common/oracle/bin
+export PATH
+
+LD_LIBRARY_PATH=\$ORACLE_HOME/lib
+LD_LIBRARY_PATH=\${LD_LIBRARY_PATH}:\$ORACLE_HOME/oracm/lib
+LD_LIBRARY_PATH=\${LD_LIBRARY_PATH}:/lib:/usr/lib:/usr/local/lib
+export LD_LIBRARY_PATH
+
+CLASSPATH=\$ORACLE_HOME/JRE
+CLASSPATH=\${CLASSPATH}:\$ORACLE_HOME/jlib
+CLASSPATH=\${CLASSPATH}:\$ORACLE_HOME/rdbms/jlib
+CLASSPATH=\${CLASSPATH}:\$ORACLE_HOME/network/jlib
+export CLASSPATH
+
+export THREADS_FLAG=native;
+
+export TEMP=/tmp
+export TMPDIR=/tmp
+
+EOF
+#@@@@@@@@@@
+
+  esac
+
+}
+
+# @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+# Variable
+# list of user
+#list_user="oracle grid"
+list_user="oracle"
+
+# list of group
+list_group="oinstall dba oper asmdba asmadmin asmoper"
+
+# @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+
+# delete
+
+echo "@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@"
+echo "Delete"
+echo "@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@"
+
+# loop for user
+for item_u in $list_user
+do
+  echo "======================="
+  echo "user: $item_u"
+  echo "======================="
+  f_drop_user $item_u
+  echo ""
+done
+
+# loop for group
+for item_g in $list_group
+do
+  echo "======================="
+  echo "group: $item_g"
+  echo "======================="
+  f_drop_group $item_g
+  echo ""
+done
+
+# @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+
+# create
+
+echo "@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@"
+echo "Create"
+echo "@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@"
+
+# loop for group
+for item_g in $list_group
+do
+  echo "------------"
+  echo "group: $item_g"
+  echo "------------"
+  f_add_group $item_g
+done
+
+# loop for user
+for item_u in $list_user
+do
+  echo "------------"
+  echo "user: $item_u"
+  echo "------------"
+  f_add_user $item_u
+done
+
+# @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+
+# env
+
+echo "@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@"
+echo "User Environment"
+echo "@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@"
+
+# loop for user
+for item_u in $list_user
+do
+  echo "------------"
+  echo "user: $item_u"
+  echo "------------"
+  f_user_env $item_u
+  echo "user: $item_u, Environment, DONE."
+  echo ""
+
+done
+
+# @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+
+# make relate directory
+
+echo "@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@"
+echo "Make Directory"
+echo "@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@"
+
+# loop for user
+for item_u in $list_user
+do
+   var_oracle_base=`su - $item_u -c "env | grep "ORACLE_BASE" | cut -d'=' -f2"`
+   #var_oracle_home=`su - $item_u -c "env | grep "ORACLE_HOME" | cut -d'=' -f2"`
+
+   # do delete
+   f_delete_dir $var_oracle_base
+   #f_delete_dir $var_oracle_home
+
+   # do make
+   mkdir -p $var_oracle_base
+   #mkdir -p $var_oracle_home
+   echo "$item_u, directories, has been CREATE."
+
+   # do change mode
+   chmod -R 777 $var_oracle_base
+   chmod -R 777 $var_oracle_base
+   echo "$item_u, directories, has been CHANGE MODE."
+
+   # do change owner
+   chown -R $item_u.oinstall $var_oracle_base
+   #chown -R $item_u.oinstall $var_oracle_home
+   echo "$item_u, directories, has been CHANGE OWNER."
+
+done
+
+# @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
