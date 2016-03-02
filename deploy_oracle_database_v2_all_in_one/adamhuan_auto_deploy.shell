@@ -1,0 +1,1181 @@
+# file: adamhuan_auto_deploy.shell
+#
+# 注释：中文、英文
+#
+# 注意：
+#
+# 如果目标系统没有中文支持，则脚本中的中文注释会干扰脚本的正常执行。
+# 这时候，你需要将所有的注释过滤掉，然后执行。
+# 你需要的命令：
+# cat <this> | grep -v "^#" > <new_file>
+
+# 函数
+# begin ============================================
+
+	# 将路径格式字符串转换成适合sed过滤条件的字符串
+	f_get_sed_string(){
+	  # $1，原始路径
+	  func_file_path="$1"
+
+	  echo "$func_file_path" | sed 's/\//\\\//g'
+	}
+
+	# 替换函数
+	func_replace(){
+	  # $1,文件
+	  # $2,搜索词
+	  # $3,新值
+	  # $4,分隔符
+	  # $5,旧值
+	  func_file="$1"
+	  func_search_str="$2"
+	  func_new_value="$3"
+	  func_split_str="$4"
+	  func_old_value="$5"
+
+	  if [[ $func_old_value == "" ]]
+	  	then
+	  	func_old_value=`cat "$func_file" | grep -v "^#" | grep "$func_search_str$func_split_str" | cut -d"$func_split_str" -f2`
+	  fi
+	  
+	  func_new_value_sed=`f_get_sed_string $func_new_value`
+	  func_old_value_sed=`f_get_sed_string $func_old_value`
+
+	  # Display
+	  echo "File: $func_file"
+	  echo "====================="
+	  echo "Old value is: $func_old_value"
+	  echo "New value is: $func_new_value"
+	  echo ""
+
+	  if [[ "$func_old_value" != "" ]]
+	  then
+	    sed -i "/$func_search_str/s/$func_old_value_sed/$func_new_value_sed/" "$func_file"
+	  else
+	    echo "$func_search_str$func_split_str$func_new_value" >> "$func_file"
+	  fi
+
+	}
+
+	# 禁用SELINUX的启用
+	do_disable_selinux(){
+	  entry_selinux=`cat "$file_sys_selinux_config" | grep -v "^#" | grep "SELINUX=" | cut -d"=" -f2`
+
+	  #if [ "$entry_selinux" = "enforcing" ] || [ "$entry_selinux" = "permissive" ]
+	  if [ "$entry_selinux" != "disabled" ]
+	  then
+	    func_replace "$file_sys_selinux_config" "SELINUX" "disabled" "="
+
+	    # 并且，将SELINUX的状态修改为警告模式，而不是启用
+
+	    # 当前状态
+	    echo ""
+	    echo "@@@ selinux status - before change:"
+	    getenforce
+	    echo ""
+
+	    # 开始修改SELINUX，从强制变为警告
+	    setenforce 0
+
+	    # 修改完成后：
+	    echo ""
+	    echo "@@@ selinux status - after change:"
+	    getenforce
+	    echo ""
+
+	  fi
+	}
+
+	# 静态化网络
+	do_static_network(){
+	  # 初始化hosts表
+	  echo "" > $file_sys_hosts
+
+	  # 收集当前系统的网络信息
+	  list_ifconfig=`ifconfig | grep --color "Link encap:" | cut -d' ' -f1`
+	  list_ifconfig_keys="BOOTPROTO ONBOOT IPADDR NETMASK GATEWAY DNS1"
+
+	  for item_ifcfg in $list_ifconfig
+	  do
+	    path_ifcfg_item="/etc/sysconfig/network-scripts/ifcfg-$item_ifcfg"
+
+	    func_item_ipaddr=`ifconfig $item_ifcfg | grep "inet addr:" | cut -d':' -f2 | cut -d' ' -f1`
+	    func_item_mask=`ifconfig $item_ifcfg | grep "inet addr:" | cut -d"k" -f2 | cut -d':' -f2`
+	    func_item_gateway=`/sbin/route -n | grep "^0\.0\.0\.0" | awk '{ print $2 }'`
+
+	    func_var_hostname="$cust_machine_hostname"
+
+	    case "$item_ifcfg" in
+	      "eth0" )
+	      #func_var_hostname="$cust_machine_hostname"
+	      echo "# network: eth0" >> $file_sys_hosts
+	      ;;
+	      "eth1" )
+	      func_var_hostname+="-priv"
+	      echo "# network: eth1" >> $file_sys_hosts
+	      ;;
+	      "lo" )
+	      func_var_hostname="localhost"
+	      echo "# network: lo" >> $file_sys_hosts
+	      ;;
+	    esac
+
+	    for item_ifcfg_key in $list_ifconfig_keys
+	    do
+	      case "$item_ifcfg_key" in
+	        "BOOTPROTO" )
+	          func_replace "$path_ifcfg_item" "BOOTPROTO" "static" "="
+	        ;;
+	        "ONBOOT" )
+	          func_replace "$path_ifcfg_item" "ONBOOT" "on" "="
+	        ;;
+	        "IPADDR" )
+	          # 写入ifcfg网卡配置文件
+	          func_replace "$path_ifcfg_item" "IPADDR" "$func_item_ipaddr" "="
+	          # 写入hosts表
+	          echo "$func_item_ipaddr $func_var_hostname" >> $file_sys_hosts
+	        ;;
+	        "NETMASK" )
+	          func_replace "$path_ifcfg_item" "NETMASK" "$func_item_mask" "="
+	        ;;
+	        "GATEWAY" )
+	          func_replace "$path_ifcfg_item" "GATEWAY" "$func_item_gateway" "="
+	        ;;
+	        "DNS1" )
+	          func_replace "$path_ifcfg_item" "DNS1" "114.114.114.114" "="
+	        ;;
+
+	      esac
+
+	    done
+
+	  done
+
+	}
+
+	# 处理服务：开机启动或禁用、运行或停止
+	do_action_service(){
+	  # $1, 服务列表
+	  # $2, 操作类型（chkconfig/service）
+	  # $3, 操作（on/off/start/stop）
+	  func_list_service="$1"
+	  func_action_type="$2"
+	  func_action_value="$3"
+
+	  for item_service in $func_list_service
+	  do
+	    #case "$func_action_type" in
+	    #  "chkconfig" )
+	    #    chkconfig $item_service $func_action_value
+	    #  ;;
+	    #  "service" )
+	    #    service $item_service $func_action_value
+	    #  ;;
+	    #esac
+
+	    $func_action_type $item_service $func_action_value
+
+	  done
+	}
+
+	# 打开YUM配置文件的本地缓存
+	do_enable_yum_keepcache(){
+	  func_replace "$file_sys_yum_conf" "cachedir" "$cust_yum_keepcache_dir" "="
+	  func_replace "$file_sys_yum_conf" "keepcache" "1" "="
+	}
+
+	# 配置YUM源文件
+	do_yum_repo(){
+	  # 清空YUM源文件路径
+	  rm -rf $file_sys_yum_repo_base/*
+
+	  # $1, YUM标记列表（eg：RHEL5-32、RHEL6-64，...etc）
+	  func_list_repo="$1"
+
+	  if [ "$func_list_repo" = "" ]
+	  then
+	    func_list_repo="$var_os_release-$var_long_bit"
+	  fi
+
+	  for item_repo in $func_list_repo
+	  do
+	    var_func_repo_file="$file_sys_yum_repo_base/$item_repo.repo"
+
+	    `do_repo_data "$var_func_repo_file" "$item_repo"`
+
+	  done
+	}
+
+	# 刷新YUM源库缓存
+	do_yum_refresh(){
+	  echo "Yum clean metadata:"
+	  echo "**********************"
+	  yum clean metadata
+	  echo ""
+	  echo "Yum clean all:"
+	  echo "**********************"
+	  yum clean all
+	  echo ""
+	  echo "Yum list repo:"
+	  echo "**********************"
+	  yum repolist
+	  echo ""
+	}
+
+# 配置YUM源文件：生成选择性的数据
+do_repo_data() {
+  # $1, 写入文件
+  # $2, repo信号（一次处理一个，一次运行只输出一次完整记录）
+  var_repo_file="$1"
+  var_repo_signal="$2"
+
+  case "$var_repo_signal" in
+    "RHEL5-64" )
+     cat <<RHEL5-64 > $var_repo_file
+[Server]
+name=Server
+baseurl=$cust_yum_repo_source/Server
+gpgcheck=0
+
+[VT]
+name=VT
+baseurl=$cust_yum_repo_source/VT
+gpgcheck=0
+
+[Cluter]
+name=Cluster
+baseurl=$cust_yum_repo_source/Cluster
+gpgchech=0
+
+[ClusterStorage]
+name=ClusterStorage
+baseurl=$cust_yum_repo_source/ClusterStorage
+gpgcheck=0
+RHEL5-64
+    ;;
+
+    "RHEL6-64" )
+    cat <<RHEL6-64 > $var_repo_file
+[ISO]
+name=ISO
+baseurl=$cust_yum_repo_source/
+gpgcheck=0
+
+[HighAvailability]
+name=HighAvailability
+baseurl=$cust_yum_repo_source/HighAvailability
+gpgcheck=0
+
+[LoadBalancer]
+name=LoadBalancer
+baseurl=$cust_yum_repo_source/LoadBalancer
+gpgchech=0
+
+[ResilientStorage]
+name=ResilientStorage
+baseurl=$cust_yum_repo_source/ResilientStorage
+gpgcheck=0
+
+[ScalableFileSystem]
+name=ScalableFileSystem
+baseurl=$cust_yum_repo_source/ScalableFileSystem
+gpgcheck=0
+
+[Server]
+name=Server
+baseurl=$cust_yum_repo_source/Server
+gpgcheck=0
+RHEL6-64
+    ;;
+
+    "C6-64" )
+    # CentOS 6 64bit
+    cat <<C6-64 > $var_repo_file
+[ISO]
+name=ISO
+baseurl=$cust_yum_repo_source/
+gpgcheck=0
+C6-64
+    ;;
+  esac
+}
+
+do_file_config(){
+	# $1,需要写入的文件
+	# $2,写入的数据类型
+	#func_file="$1"
+	func_mark="$1"
+
+	case "$func_mark" in
+		"SYSCTL-ORACLE-10g" )
+			# /etc/sysctl.conf for OraDB 10g
+			cp -rf $file_sys_sysctl $path_backup_dir
+			cat <<SYSCTL >> $file_sys_sysctl
+# for Oracle database 10g
+kernel.shmall = 2097152
+kernel.shmmax = 2147483648
+kernel.shmmni = 4096
+kernel.sem = 250 32000 100 128
+fs.file-max = 65536
+net.ipv4.ip_local_port_range = 1024 65000
+net.core.rmem_default = 262144
+net.core.rmem_max = 262144
+net.core.wmem_default = 262144
+net.core.wmem_max = 262144
+SYSCTL
+			sysctl -p
+		;;
+
+		"LOGIN-ORACLE-10g" )
+			# /etc/pam.d/login for OraDB 10g
+			cp -rf $file_sys_login $path_backup_dir
+			cat <<LOGIN >> $file_sys_login
+# For Oracle database 10g
+
+session        required        /lib/security/pam_limits.so
+session        required        pam_limits.so
+LOGIN
+		;;
+
+		"LIMITS-ORACLE-10g" )
+			# /etc/security/limits.conf for OraDB 10g
+			cp -rf $file_sys_limits $path_backup_dir
+			cat <<LIMITS >> $file_sys_limits
+# For Oracle database 10g
+
+*        soft        nproc        2047
+*        hard        nproc        16384
+*        soft        nofile       1024
+*        hard        nofile       65536
+LIMITS
+		;;
+
+		"RELEASE-ORACLE-10g" )
+			# /etc/redhat-release for OraDB 10g
+			cp -rf $file_sys_release $path_backup_dir
+			echo "$var_os_release" > $file_sys_release
+		;;
+
+	esac
+}
+
+# 配置Linux用户的环境变量
+do_user_env(){
+	# $1, 文件路径
+	# $2, 标识符
+	file_path_env="$1"
+	user_env_mark="$2"
+
+	cp $file_path_env $path_backup_dir
+
+	case "$user_env_mark" in
+		"oracle-db-10g" )			
+			cat <<ORACLE-DB-10G > "$file_path_env"
+
+# Default
+# .bash_profile
+
+# Get the aliases and functions
+if [ -f ~/.bashrc ]; then
+        . ~/.bashrc
+fi
+
+# User specific environment and startup programs
+
+PATH=$PATH:$HOME/bin
+
+export PATH
+
+# for Oracle database 10g
+
+export ORACLE_SID=edendb1;
+export ORACLE_UNQNAME=edendb;
+export JAVA_HOME=/usr/local/java;
+export ORACLE_BASE=/u01/app/oracle;
+export ORACLE_HOME=\$ORACLE_BASE/product/10.0.2/dbhome_1;
+export ORACLE_PATH=/u01/app/common/oracle/sql;
+export ORACLE_TERM=xterm;
+export NLS_DATE_FORMAT="DD-MON-YYYY HH24:MI:SS";
+export TNS_ADMIN=\$ORACLE_HOME/network/admin;
+export ORA_NLS11=\$ORACLE_HOME/nls/data;
+ 
+PATH=.:\${JAVA_HOME}/bin:\${PATH}:\$HOME/bin:\$ORACLE_HOME/bin
+PATH=\${PATH}:/usr/bin:/bin:/usr/bin/X11:/usr/local/bin
+PATH=\${PATH}:/u01/app/common/oracle/bin
+export PATH
+ 
+LD_LIBRARY_PATH=\$ORACLE_HOME/lib
+LD_LIBRARY_PATH=\${LD_LIBRARY_PATH}:\$ORACLE_HOME/oracm/lib
+LD_LIBRARY_PATH=\${LD_LIBRARY_PATH}:/lib:/usr/lib:/usr/local/lib
+export LD_LIBRARY_PATH
+ 
+CLASSPATH=\$ORACLE_HOME/JRE
+CLASSPATH=\${CLASSPATH}:\$ORACLE_HOME/jlib
+CLASSPATH=\${CLASSPATH}:\$ORACLE_HOME/rdbms/jlib
+CLASSPATH=\${CLASSPATH}:\$ORACLE_HOME/network/jlib
+export CLASSPATH
+ 
+export THREADS_FLAG=native;
+ 
+export TEMP=/tmp
+export TMPDIR=/tmp
+
+ORACLE-DB-10G
+		;;
+
+		"grid-db-10g" )
+			cat <<GRID-DB-10G > "$file_path_env"
+#Default
+# .bash_profile
+
+# Get the aliases and functions
+if [ -f ~/.bashrc ]; then
+        . ~/.bashrc
+fi
+
+# User specific environment and startup programs
+
+PATH=$PATH:$HOME/bin
+
+export PATH
+
+# for Oracle database 10g
+
+# Grid Node1
+export ORACLE_SID=+ASM1;
+export JAVA_HOME=/usr/local/java;
+export ORACLE_BASE=/u01/app/grid;
+export ORACLE_HOME=/u01/app/10.0.2/grid;
+export ORACLE_PATH=/u01/app/oracle/common/oracle/sql;
+export ORACLE_TERM=xterm;
+export NLS_DATE_FORMAT="DD-MON-YYYY HH24:MI:SS";
+export TNS_ADMIN=\$ORACLE_HOME/network/admin;
+export ORA_NLS11=\$ORACLE_HOME/nls/data;
+ 
+PATH=.:\${JAVA_HOME}/bin:\${PATH}:\$HOME/bin:\$ORACLE_HOME/bin
+PATH=\${PATH}:/usr/bin:/bin:/usr/bin/X11:/usr/local/bin
+PATH=\${PATH}:/u01/app/common/oracle/bin
+export PATH
+ 
+LD_LIBRARY_PATH=\$ORACLE_HOME/lib
+LD_LIBRARY_PATH=\${LD_LIBRARY_PATH}:\$ORACLE_HOME/oracm/lib
+LD_LIBRARY_PATH=\${LD_LIBRARY_PATH}:/lib:/usr/lib:/usr/local/lib
+export LD_LIBRARY_PATH
+ 
+CLASSPATH=\$ORACLE_HOME/JRE
+CLASSPATH=\${CLASSPATH}:\$ORACLE_HOME/jlib
+CLASSPATH=\${CLASSPATH}:\$ORACLE_HOME/rdbms/jlib
+CLASSPATH=\${CLASSPATH}:\$ORACLE_HOME/network/jlib
+export CLASSPATH
+ 
+export THREADS_FLAG=native;
+ 
+export TEMP=/tmp
+export TMPDIR=/tmp
+
+GRID-DB-10G
+		;;
+	esac
+}
+
+	#目录结构相关
+	do_dir(){
+		# $1,是否备份？（backup,nobackup）
+		backup_able="$1"
+		case "$backup_able" in
+			"backup" )
+				for dir_item in $list_dir
+					do
+						cp -rf $dir_item $path_backup_dir
+						rm -rf $dir_item
+					done
+			;;
+			"nobackup" )
+				for dir_item in $list_dir
+					do
+						if [ -d "$dir_item" ]
+							then
+							rm -rf $dir_item
+						fi
+
+						mkdir -p $dir_item
+						chmod -R 777 $dir_item
+						ls -ldtr --time-style="+%Y-%m-%d %H:%M |" $item | grep --color $dir_item
+					done
+			;;
+		esac
+	}
+
+	do_remove_alias(){
+		for alias_item in $list_alias
+		do
+			echo "*** Current Alias: $alias_item"
+			alias_record=`cat $file_sys_root_bashrc | grep "$alias_item"`
+
+			if [[ $alias_record != "" ]]
+				then
+					sed -i "s/$alias_item -i/$alias_item/" $file_sys_root_bashrc
+				else
+					echo "alias $alias_record='$alias_record'" >> $file_sys_root_bashrc
+			fi
+
+		done
+	}
+
+	# -------------------------
+	# 初步配置服务器
+	section_init_linux(){
+		#主机名
+		func_replace "$file_sys_network" "HOSTNAME" "$cust_machine_hostname" "="
+
+		#禁用alias的交互模式
+		do_remove_alias
+
+		#SELINUX：禁用
+		do_disable_selinux
+
+		#静态化网络
+		do_static_network
+		do_action_service "network" "service" "restart"
+		
+		echo "测试网络："
+		#echo "Test Network:"
+		echo "========================"
+		ping -c 3 baidu.com
+		echo "========================"
+		echo ""
+
+		#开机服务的禁用
+		do_action_service "iptables ip6tables" "chkconfig" "off"
+
+		#YUM开启本地缓存
+		do_enable_yum_keepcache
+
+		#YUM配置源文件
+		#do_yum_repo
+		do_yum_repo "RHEL5-64"
+
+		#刷新YUM配置
+		do_yum_refresh
+
+		#创建需要的目录结构
+		do_dir nobackup
+	}
+
+	# 为Oracle Database配置Linux文件
+	do_oracle_db_file_config(){
+		for mark_item in $list_oradb10g_file_mark
+		do
+			echo "--- current: $mark_item"
+			do_file_config $mark_item
+			echo ""
+		done
+	}
+
+	# 处理用户与用户组的相关事宜
+	drop_linux_user(){
+		# $1, 用户名
+		# $2, 操作
+
+		echo "@@@ --- Function drop_linux_user ---"
+
+		list_user_exsist=`cat $file_sys_passwd | cut -d':' -f1`
+
+		for exsist_user_item in $list_user_exsist
+		do
+			for user_item in $list_user
+			do
+				if [ $user_item = $exsist_user_item ]
+					then
+					echo "@@@ user: $user_item, action: drop"
+					userdel "$user_item"
+					rm -rf /var/spool/mail/$user_item
+        			rm -rf /home/$user_item
+				fi
+
+			done
+		done
+
+	}
+
+	drop_linux_group(){
+		# $1, 组名
+		# $2, 操作
+
+		list_group_exsist=`cat $file_sys_group | cut -d':' -f1`
+
+		for exsist_group_item in $list_group_exsist
+		do
+			for group_item in $list_group
+			do
+				if [ $group_item = $exsist_group_item ]
+					then
+					echo "@@@ group: $group_item, action: drop"
+					groupdel $group_item
+				fi
+
+			done
+		done
+
+	}
+
+	add_linux_group(){
+		for group_item in $list_group
+		do
+			echo "@@@ group: $group_item, action: add"
+			groupadd $group_item
+		done
+	}
+
+	add_linux_user(){
+		for user_item in $list_user
+		do
+			echo "@@@ user: $user_item, action: add"
+			path_env_file="/home/$user_item/.bash_profile"
+
+			case "$user_item" in
+				"oracle" )
+					useradd -m -u 1101 -g oinstall -G dba,oper,asmdba -c "Oracle Software Owner" $user_item
+					do_user_env "$path_env_file" "oracle-db-10g"
+				;;
+
+				"grid" )
+					useradd -m -u 1100 -g oinstall -G asmadmin,asmdba,asmoper -c "Grid Infrastructure Owner" $user_item
+					do_user_env "$path_env_file" "grid-db-10g"
+				;;
+
+				* )
+					useradd $user_item
+				;;
+			esac
+
+			echo "oracle" | passwd --stdin $user_item
+
+			var_oracle_base=`su - $user_item -c "env | grep "ORACLE_BASE" | cut -d'=' -f2"`
+   			var_oracle_home=`su - $user_item -c "env | grep "ORACLE_HOME" | cut -d'=' -f2"`
+
+   			for env_item in $var_oracle_base $var_oracle_home
+   			do
+   				if [ -d "$env_item" ]
+   					then
+   					rm -rf $env_item
+   				fi
+   				mkdir -p $env_item
+   				chmod -R 777 $env_item
+   				chown -R $user_item.oinstall $env_item
+   			done
+
+		done
+	}
+
+	do_oracle_user(){
+		drop_linux_user
+		drop_linux_group
+		
+		add_linux_group
+		add_linux_user
+	}
+
+	# 解压方法：func_unzip "path"，自动解压目标路径下的所有能解压的类型
+	do_unzip_file(){
+		# $1, 指定解压文件的绝对路径
+		zip_file_name="$1"
+
+		# 指定路径中包含的文件后缀（由于这一的算法是这么判断的，所以，下载路径中，不要轻易放入非解压介质的文件）
+		# 若希望过滤，可以添加：grep -v "xxx"
+		func_unzip_file_type=`echo "$zip_file_name" | rev | cut -d'.' -f1 | rev`
+
+		# Display
+		echo ""
+		echo "--- --- ---"
+		echo "File: $zip_file_name"
+		echo "Type: $func_unzip_file_type"
+		echo ""	
+
+		# 按条件选择解压方法
+		case "$func_unzip_file_type" in
+			"gz" )
+				#可以直接解压，他默认解压路径就是文件所在的路径
+				gunzip $zip_file_name
+			;;
+			
+			"tar" )
+				# 默认解压到软件的存储目录，也就是变量“path_file_store”指定的位置
+				tar xzvf $zip_file_name -C $path_file_store
+			;;
+			
+			"cpio" )
+				#cd $path_file_store && cpio -idmv < $zip_file_name
+				cd $path_file_store && cpio -idm < $zip_file_name
+			;;
+			
+			"zip" )
+				unzip -o $zip_file_name -d $path_file_store
+			;;
+
+		esac
+
+		# 解压后，删除源文件
+		rm -rf $zip_file_name
+
+	}
+
+	do_unzip_dir(){
+		# $1, 指定存放解压文件的路径
+		zip_file_dir="$1"
+
+		#func_list_file_type=`ls -l $zip_file_dir | grep -v "^d" | awk '{print $8}' | rev | cut -d'.' -f1 | rev`
+		#count_list_file_type=`ls -l $zip_file_dir | grep -v "^d" | awk '{print $8}' | rev | cut -d'.' -f1 | rev | wc -l`
+
+		func_list_file_type=`ls -ltr --time-style="+%Y-%m-%d %H:%M |" $path_file_store | grep -v ^d | grep -v total | grep -v html | grep -v htm | cut -d'|' -f2 | grep --color "\." | rev | cut -d'.' -f1 | rev`
+		func_list_file_type_count=`ls -ltr --time-style="+%Y-%m-%d %H:%M |" $path_file_store | grep -v ^d | grep -v total | grep -v html | grep -v htm | cut -d'|' -f2 | grep --color "\." | rev | cut -d'.' -f1 | rev | wc -l`
+
+		# Display
+		echo ""
+		echo "****************"
+		echo "@@@ dir: $zip_file_dir"
+		echo "---- dir status:"
+		echo "~~~~~~~~~~~~~~~~~~~"
+		ls -ltr --time-style="+%Y-%m-%d %H:%M |" $path_file_store
+		echo "~~~~~~~~~~~~~~~~~~~"
+		echo ""
+
+		# 查看循环次数
+		count_loop=1
+
+		until [ $func_list_file_type_count -eq 0 ]
+		do
+			# Display
+			echo "Lopp count: $count_loop"
+
+			echo "---- type lise: $func_list_file_type"
+			echo "---- media file.count: $func_list_file_type_count"
+			echo ""
+
+			for type_item in $func_list_file_type
+			do
+				# Display
+				#echo "*** file type: $type_item"
+				#echo ""
+
+				func_loop_file_list_by_type=`ls $path_file_store | grep ".$type_item\$"`
+
+				# Display
+				#echo "### file type: $type_item"
+				echo -e "### file list:\n$func_loop_file_list_by_type"
+				#echo ""
+
+				for file_item in $func_loop_file_list_by_type
+				do
+					# Display
+					echo "___ file: $file_item"
+
+					do_unzip_file "$path_file_store/$file_item"
+
+				done
+
+				# 刷新当前目录的待解压类型列表
+				func_list_file_type=`ls -ltr --time-style="+%Y-%m-%d %H:%M |" $path_file_store | grep -v ^d | grep -v total | grep -v html | grep -v htm | cut -d'|' -f2 | grep --color "\." | rev | cut -d'.' -f1 | rev`
+			done
+
+			# 刷新循环计数器
+			let count_loop=count_loop+1
+
+			# 刷新当前路径中的可解压的后缀数
+			#count_list_file_type=`ls -l $zip_file_dir | grep -v "^d" | awk '{print $8}' | rev | cut -d'.' -f1 | rev | wc -l`
+			func_list_file_type_count=`ls -ltr --time-style="+%Y-%m-%d %H:%M |" $path_file_store | grep -v ^d | grep -v total | grep -v html | grep -v htm | cut -d'|' -f2 | grep --color "\." | rev | cut -d'.' -f1 | rev | wc -l`
+
+		done
+
+	}
+
+	do_oracle_install_media(){
+		rm -rf $path_file_store/*
+		wget -P $path_file_store $install_media_oracledb10g
+
+		# 解压介质：Oracle的介质都存放在了：$path_file_store
+		# 解压过程中，可以开启另一个会话，用下面命令查看介质目录的实时状态：
+		# 命令：
+		# watch -n .1 -d "ls -ltr /software/oracle_media;echo "------------";du -sh /software/oracle_media/*"
+		do_unzip_dir $path_file_store
+
+	}
+
+	# 静默安装：Oracle database 10g，数据库软件
+	oracledb10g_install_software_silent(){
+		var_oracle_base=`su - oracle -c "env | grep "ORACLE_BASE" | cut -d'=' -f2"`
+   		var_oracle_home=`su - oracle -c "env | grep "ORACLE_HOME" | cut -d'=' -f2"`
+
+   		script_orainstRoot_path=$var_oracle_base/oraInventory/orainstRoot.sh
+		script_root_path=$var_oracle_home/root.sh
+
+   		# 创建静默文件
+   		func_ora_response_file="$path_file_store/oracle_enterprise_sw_only.rsp"
+
+   		cat <<RESP > $func_ora_response_file
+RESPONSEFILE_VERSION=2.2.1.0.0
+UNIX_GROUP_NAME=oinstall
+FROM_LOCATION="$path_file_store/database/stage/products.xml"
+ORACLE_HOME=$var_oracle_home
+ORACLE_HOME_NAME="Oracle_database_10g_HOME_1"
+TOPLEVEL_COMPONENT={"oracle.server","10.2.0.1.0"}
+DEINSTALL_LIST={"oracle.server","10.2.0.1.0"}
+SHOW_INSTALL_PROGRESS_PAGE=true
+RESTART_SYSTEM=true
+RESTART_REMOTE_SYSTEM=false
+ORACLE_HOSTNAME=`hostname`
+SHOW_END_OF_INSTALL_MSGS=false
+COMPONENT_LANGUAGES={"en","zh_CN"}
+INSTALL_TYPE="EE"
+s_nameForDBAGrp="dba"
+s_nameForOPERGrp="oper"
+n_configurationOption=3
+RESP
+	
+	#执行静默文件
+	echo ""
+	echo "@@@ OUI Install Oracle database software: silent"
+	echo "~~~~~~~~~~~~~~~~~~~~"
+	echo "@@@ OUI Begin: `date`"
+	echo ""
+
+	su - oracle -c "$path_file_store/database/runInstaller -silent -ignoreSysPrereqs -responseFile $func_ora_response_file"
+
+	# 用来确定OUI的静默安装是否完成的标示量
+	oui_status=1
+
+	while [ `ps -ef | grep -v grep | grep oracle | grep oui | wc -l` != 0 ]
+	do
+		echo ""
+    	echo "@@@ Process is still working... Now: $oui_status"
+
+    	# increase count number.
+      	let oui_status=oui_status+1
+
+      	# if process not done, keep sleep 20's
+      	echo "--- sleep: 20 sec."
+      	echo ""
+
+      	sleep 20
+
+	done
+
+	echo "~~~~~~~~~~~~~~~~~~~~"
+	echo "@@@ OUI Finished: `date`"
+	echo ""
+
+	echo "~~~~~~~~~~~~~~~~~~~~"
+	echo "@@@ Run Post Script"
+	echo ""
+
+	echo "--- 1. orainstRoot.sh"
+	echo "****************"
+	$script_orainstRoot_path
+	echo "****************"
+	echo ""
+
+	echo "--- 2. root.sh"
+	echo "****************"
+	$script_root_path <<ROOT
+/usr/local/bin
+
+ROOT
+	echo "****************"
+	echo ""
+
+	}
+
+	# 静默部署：Oracle Database 10g，数据库监听器
+	oracledb10g_listener(){
+		# 环境变量
+		var_oracle_base=`su - oracle -c "env | grep "ORACLE_BASE" | cut -d'=' -f2"`
+   		var_oracle_home=`su - oracle -c "env | grep "ORACLE_HOME" | cut -d'=' -f2"`
+
+   		# 基础文件路径
+   		file_path_tns_home=$var_oracle_home/network/admin
+		file_path_listener=$file_path_tns_home/listener.ora
+		file_path_tns=$file_path_tns_home/tnsnames.ora
+
+   		# 监听器的静默文件
+   		func_listener_response_file="$path_file_store/oracle_listener.rsp"
+
+   		cat <<RESP > $func_listener_response_file
+[GENERAL]
+RESPONSEFILE_VERSION="10.0"
+CREATE_TYPE= "CUSTOM"
+[oracle.net.ca]
+INSTALLED_COMPONENTS={"server","net8","javavm"}
+INSTALL_TYPE=""custom""
+LISTENER_NUMBER=1
+LISTENER_NAMES={"LISTENER"}
+LISTENER_PROTOCOLS={"TCP;1521"}
+LISTENER_START=""LISTENER""
+NAMING_METHODS={"TNSNAMES","ONAMES","HOSTNAME"}
+NSN_NUMBER=1
+NSN_NAMES={"EXTPROC_CONNECTION_DATA"}
+NSN_SERVICE = {"PLSExtProc"}
+NSN_PROTOCOLS={"TCP;HOSTNAME;1521"}
+RESP
+	
+	# 备份路径
+	cp -rf $file_path_tns_home $path_backup_dir
+
+	# 开始执行静默部署
+	echo "~~~~~~~~~~~~~~~~~~~~"
+	echo "@@@ NETCA Begin: `date`"
+	echo ""
+
+	su - oracle -c "netca /silent /responseFile $func_listener_response_file"
+
+	echo "~~~~~~~~~~~~~~~~~~~~"
+	echo "@@@ NETCA Finished: `date`"
+	echo ""
+
+	echo "Listener status:"
+	echo "*********************"
+	lsnrctl status
+	echo "*********************"
+	echo ""
+
+	}
+
+	# 静默部署：Oracle Database 10g，实例
+	oracledb10g_instance(){
+		# 环境变量
+		var_oracle_base=`su - oracle -c "env | grep "ORACLE_BASE" | cut -d'=' -f2"`
+   		var_oracle_home=`su - oracle -c "env | grep "ORACLE_HOME" | cut -d'=' -f2"`
+
+   		# 注意：
+   		# 这里的实例名是从环境变量里实时抓取的，你也可以自定义指定，这也是你即将创建的实例的名字
+   		var_oracle_sid=`su - oracle -c "env | grep ORACLE_SID" | cut -d'=' -f2`
+   		var_password="oracle"
+
+   		# 创建实例的时候需要的响应文件
+   		func_instance_response_file="$path_file_store/oracle_instance.rsp"
+
+   		cat <<INST > $func_instance_response_file
+[GENERAL]
+RESPONSEFILE_VERSION = "10.0.0"
+OPERATION_TYPE = "createDatabase"
+
+[CREATEDATABASE]
+GDBNAME = "$var_oracle_sid"
+SID = "$var_oracle_sid"
+TEMPLATENAME = "New_Database.dbt"
+SYSPASSWORD = "$var_password"
+SYSTEMPASSWORD = "$var_password"
+SYSMANPASSWORD = "$var_password"
+DBSNMPPASSWORD = "$var_password"
+DATAFILEDESTINATION = "$var_oracle_base/oradata"
+RECOVERYAREADESTINATION = "$var_oracle_base/flash_recovery_area"
+STORAGETYPE=FS
+CHARACTERSET = "ZHS16GBK"
+NATIONALCHARACTERSET= "AL16UTF16"
+LISTENERS = "LISTENER"
+MEMORYPERCENTAGE = "40"
+DATABASETYPE = "MULTIPURPOSE"
+
+[createTemplateFromDB]
+SOURCEDB = "myhost:1521:$var_oracle_sid"
+SYSDBAUSERNAME = "system"
+TEMPLATENAME = "My Copy TEMPLATE"
+
+[createCloneTemplate]
+SOURCEDB = "$var_oracle_sid"
+TEMPLATENAME = "My Clone TEMPLATE"
+
+[DELETEDATABASE]
+SOURCEDB = "$var_oracle_sid"
+
+[generateScripts]
+TEMPLATENAME = "Create Database - $var_oracle_sid"
+GDBNAME = "$var_oracle_sid"
+
+[CONFIGUREDATABASE]
+SOURCEDB = "$var_oracle_sid"
+EMCONFIGURATION = "LOCAL"
+SYSMANPASSWORD = "$var_password"
+DBSNMPPASSWORD = "$var_password"
+
+[DELETEINSTANCE]
+DB_UNIQUE_NAME = "$var_oracle_sid"
+INSTANCENAME = "$var_oracle_sid"
+SYSDBAUSERNAME = "sys"
+INST
+
+	# 在/etc/oratab中的实例名列表
+	list_oratab_inst=``cat /etc/oratab | strings | grep -v ^# | cut -d':' -f1``
+
+	# 判定实例（打算创建的）当前是否存在的标示量
+	inst_status=no
+
+	for inst_item in $list_oratab_inst
+	do
+		if [[ $var_oracle_sid = $inst_item ]]
+			then
+				inst_status=yes
+			else
+				inst_status=no
+		fi
+	done
+
+	# 如果打算创建的实例，已经存在，DBCA，静默删除
+	if [[ $inst_status = "yes" ]]
+		then
+			su - oracle -c "dbca -silent -deleteDatabase -sourcedb $var_oracle_sid -sid $var_oracle_sid"
+	fi
+
+	# 根据静默脚本创建数据库实例
+	echo "@@@ dbca create instance: begin - `date`"
+	echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
+	echo ""
+	su - oracle -c "dbca -silent -responseFile $func_instance_response_file"
+
+	echo ""
+	echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
+	echo "@@@ dbca create instance: finished - `date`"
+	echo ""
+
+	}
+	
+	# Oracle database 10g：安装与配置
+	section_oracle_database_10g(){
+		# 安装需要的YUM软件包
+		yum install -y binutils* compat-db setarch compat-libstdc++-* control-center elfutils-libelf-* elfutils-libelf-devel-* elfutils-libelf-devel-static-* gcc-* gcc-c++-* glibc-* glibc-common-* glibc-devel-* glibc-headers-* ksh libaio-* libaio-devel-* libgcc libstdc++-* libstdc++-devel make sysstat unixODBC unixODBC-devel compat-libstdc++-33.i386 compat-libstdc++-296.i386 glibc.i686 glibc-devel.i386 unixODBC.i386 unixODBC-devel.i386 libaio.i386 libaio-devel.i386 libgcc.i386 libstdc++.i386 libstdc++-devel.i386 libaio-devel.i386 libXp.i386 iscsi* scsi* createrepo
+
+		# 配置Linux文件
+		do_oracle_db_file_config
+
+		# 配置用户与组相关事宜（包含环境变量以及对应的文件系统路径创建）
+		do_oracle_user
+
+		# 获取介质并解压
+		do_oracle_install_media
+
+		# 静默安装：数据库软件（包括，安装后的脚本执行）
+		oracledb10g_install_software_silent
+
+		# 静默部署：数据库监听程序
+		oracledb10g_listener
+
+		# 静默部署：创建数据库实例
+		oracledb10g_instance
+
+	}
+
+# end   ============================================
+
+# 变量与参数定义
+# begin ============================================
+	# 执行时路径
+	meta_exec_path=`dirname $0`
+
+	# 文件路径
+	file_sys_network="/etc/sysconfig/network"
+	file_sys_selinux_config="/etc/selinux/config"
+	file_sys_resolv="/etc/resolv.conf"
+	file_sys_hosts="/etc/hosts"
+	file_sys_yum_conf="/etc/yum.conf"
+	file_sys_release="/etc/redhat-release"
+	file_sys_yum_repo_base="/etc/yum.repos.d"
+	file_sys_limits="/etc/security/limits.conf"
+	file_sys_login="/etc/pam.d/login"
+	file_sys_sysctl="/etc/sysctl.conf"
+	file_sys_root_bashrc="/root/.bashrc"
+	file_sys_group=/etc/group
+	file_sys_passwd=/etc/passwd
+
+	# 实时状态抓取、计算的变量
+	var_os_release=`cat $file_sys_release | sed 's/[[:space:]]/\n/g' | awk -v FS="" '{print $1}' | awk '{ for (i=1;i<=NF;i++) if($i != "S" && $i != "r" && $i != "(" ) {printf $i}}END{printf "\n"}'`
+	var_long_bit=`getconf LONG_BIT`
+
+	# 自定义变量
+	cust_machine_hostname="oracle-db" # 主机名
+	default_password="oracle" # 默认情况下的所有密码策略的设定
+ 	
+	# 希望修改的Alias的列表
+	list_alias="rm cp mv"
+
+	# YUM源的地址
+	cust_yum_repo_source_dir="/iso"
+
+	var_repo_source_server_protocol="ftp"
+	var_repo_source_server="192.168.184.132"
+
+	# 方式一：本地YUM源
+	#cust_yum_repo_source="file://$cust_yum_repo_source_dir"
+	# 方式二：根据当前环境的实时信息计算出YUM源的地址
+	#cust_yum_repo_source="$var_repo_source_server_protocol://$var_repo_source_server/media_store/os/linux/rhel/$var_os_release/$var_long_bit"
+	# 方式三：直接指定远程的YUM源地址
+	cust_yum_repo_source="http://192.168.232.130/cobbler/ks_mirror/RHEL5-x86_64"
+
+	# YUM本地缓存
+	cust_yum_keepcache_dir="/tmp/yum_data"
+
+	# 离线运行脚本时，离线的RPM包存放的位置
+	path_offline_rpm="$meta_exec_path/rpm_offline"
+
+	# 独立的RPM包
+	# EPEL包
+	path_epel_rpm="https://dl.fedoraproject.org/pub/epel/epel-release-latest-6.noarch.rpm"
+	# PyYAML包
+	path_pyyaml_rpm="ftp://ftp.icm.edu.pl/vol/rzm5/linux-oracle-repo/OracleLinux/OL6/openstack10/x86_64/getPackage/PyYAML-3.10-3.el6.x86_64.rpm"
+
+	# 希望创建的目录列表
+	list_dir="/iso /temp_me /software /backup /script"
+
+	# 备份目录路径
+	path_backup_dir="/tmp"
+
+	# 对于Oracle database 10g的配置：
+	# 需要修改的文件列表
+	list_oradb10g_file_mark="SYSCTL-ORACLE-10g LOGIN-ORACLE-10g LIMITS-ORACLE-10g RELEASE-ORACLE-10g"
+
+	# 创建组与用户
+	# 针对Oracle Database的环境的用户设置
+	list_user="grid oracle"
+	list_group="oinstall dba oper asmdba asmadmin asmoper"
+
+	# 将Oracle的安装介质下载到本地的时候的存储路径
+	path_file_store="/software/oracle_media"
+
+	# Oracle database 10g介质
+	oracledb10g_media_name="10201_database_linux_x86_64.cpio.gz"
+	install_media_download_base="http://192.168.232.130/oracle_media"
+	install_media_oracledb10g="$install_media_download_base/$oracledb10g_media_name"
+	local_media_oracledb10g="$path_file_store/$oracledb10g_media_name"
+
+# end   ============================================
+
+# 运行时
+# begin ============================================
+
+	#开始时间
+	echo "%%%%%%%%% Begin: `date`"
+
+	# 脚本运行时信息（Meta）
+	# 中文注释
+	echo "当前脚本的执行路径：$meta_exec_path"
+	# English Comment
+	#echo "Current Script - execute path: $meta_exec_path"
+	echo ""
+
+	echo "***************************"
+	echo ""
+
+	# 中文注释
+	echo "@@@ 初步配置服务器"
+	# English Comment
+	echo "@@@ Init Linux Server"
+
+	section_init_linux
+	echo ""
+
+	echo "@@@ Oracle database 10g：安装与部署"
+	section_oracle_database_10g
+
+	#结束时间
+	echo "%%%%%%%%% Finished: `date`"
+
+# end   ============================================
+# 结束
