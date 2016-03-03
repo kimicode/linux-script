@@ -1209,7 +1209,7 @@ INST
 
 	# 关闭允许脚本可用的变量
 	echo "@@@ This Script: 禁用"
-	sed -i "s/enable_script=1/enable_script=0/" $this_script_conf
+	sed -i "s/enable_script=1/enable_script=0/g" $this_script_conf
 
 	#结束时间
 	echo "%%%%%%%%% Finished: `date`"
