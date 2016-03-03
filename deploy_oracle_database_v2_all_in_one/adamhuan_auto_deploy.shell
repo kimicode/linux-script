@@ -388,8 +388,12 @@ export PATH
 
 # for Oracle database 10g
 
-export ORACLE_SID=edendb1;
-export ORACLE_UNQNAME=edendb;
+#export ORACLE_SID=edendb1;
+#export ORACLE_UNQNAME=edendb;
+
+export ORACLE_SID=$var_cust_oracle_sid;
+export ORACLE_UNQNAME=$var_cust_oracle_sid;
+
 export JAVA_HOME=/usr/local/java;
 export ORACLE_BASE=/u01/app/oracle;
 export ORACLE_HOME=\$ORACLE_BASE/product/10.0.2/dbhome_1;
@@ -443,6 +447,7 @@ export PATH
 
 # Grid Node1
 export ORACLE_SID=+ASM1;
+
 export JAVA_HOME=/usr/local/java;
 export ORACLE_BASE=/u01/app/grid;
 export ORACLE_HOME=/u01/app/10.0.2/grid;
@@ -1063,12 +1068,33 @@ INST
 
 	}
 
+	# 元函数：脚本是否可以执行
+	this_script_run_able(){
+		# 从配置文件中读取记录的值
+		this_script_status=`cat $this_script_conf | grep "enable_script=" | cut -d'=' -f2`
+
+		# 开始判定
+		case "$this_script_status" in
+			"0" )
+				echo "@@@ Not allow to run."
+				exit
+			;;
+
+			"1" )
+				echo "@@@ Allow to run."
+			;;
+		esac
+
+	}
+
 # end   ============================================
 
 # 变量与参数定义
 # begin ============================================
 	# 执行时路径
 	meta_exec_path=`dirname $0`
+	this_script_log="$meta_exec_path/adamhuan_auto_deploy.log"
+	this_script_conf="$meta_exec_path/adamhuan_auto_deploy.conf"
 
 	# 文件路径
 	file_sys_network="/etc/sysconfig/network"
@@ -1145,13 +1171,20 @@ INST
 	install_media_oracledb10g="$install_media_download_base/$oracledb10g_media_name"
 	local_media_oracledb10g="$path_file_store/$oracledb10g_media_name"
 
+	# 要创建的Oracle数据库的实例名
+	var_cust_oracle_sid="sara"
+
 # end   ============================================
 
 # 运行时
 # begin ============================================
 
 	#开始时间
+	{
 	echo "%%%%%%%%% Begin: `date`"
+
+	# 是否允许执行脚本
+	this_script_run_able
 
 	# 脚本运行时信息（Meta）
 	# 中文注释
@@ -1174,8 +1207,13 @@ INST
 	echo "@@@ Oracle database 10g：安装与部署"
 	section_oracle_database_10g
 
+	# 关闭允许脚本可用的变量
+	echo "@@@ This Script: 禁用"
+	sed -i "s/enable_script=1/enable_script=0/" $this_script_conf
+
 	#结束时间
 	echo "%%%%%%%%% Finished: `date`"
+	} 2>&1 > $this_script_log
 
 # end   ============================================
 # 结束
