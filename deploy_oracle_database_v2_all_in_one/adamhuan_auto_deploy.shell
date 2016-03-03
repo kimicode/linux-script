@@ -11,7 +11,8 @@
 
 # 本脚本适用于Cobbler的时候，需要修改以下两个类型的值：
 # 1. Cobbler服务器的IP地址
-# 2. Cobbler上的ks_mirror的介质地址
+# 2. Cobbler上的ks_mirror的介质地址（脚本执行前，需要确认需要的软件介质都已经被放进去了。eg：在Oracle DB 10g的安装过程中，需要确认的是*.cpio.gz的安装介质，被放入了软件介质路径中，以便于自动脚本下载。）
+
 # 指令：
 # 1. sed -i 's/192.168.232.130/166.100.0.253/g' <this>
 # 2. sed -i 's/192.168.232/166.100.0/g' <this>
@@ -1125,7 +1126,10 @@ INST
 	# 如果打算创建的实例，已经存在，DBCA，静默删除
 	if [[ $inst_status = "yes" ]]
 		then
+			# DBCA静默删除
 			su - oracle -c "dbca -silent -deleteDatabase -sourcedb $var_oracle_sid -sid $var_oracle_sid"
+			# 删除完了，注销掉/etc/oratab文件中的记录
+			sed -i "s/^$var_oracle_sid:/#$var_oracle_sid:/g" /etc/oratab
 	fi
 
 	# 根据静默脚本创建数据库实例
