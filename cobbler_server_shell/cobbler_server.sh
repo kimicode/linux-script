@@ -1,4 +1,10 @@
 # auto deploy: Cobbler Server
+# 执行该脚本，你可能需要修改的两个参数：
+# 1. 主机名的设定：cust_machine_hostname
+# 2. YUM源的IP地址：var_repo_source_server
+# 3. 执行脚本前，挂在光盘介质到/iso，或者修改改脚本中的YUM源的变量
+# 4. 软件包的安装方式：离线（offline）、在线（online），默认：在线
+#	 该设定在运行时的部分的：do_install_addition_rpm offline，设置。
 
 # -----------------------------
 # 函数
@@ -370,8 +376,7 @@ do_install_addition_rpm(){
       # EPEL
       rm -rf /tmp/epel*
 
-      #wget -P /tmp "$path_epel_rpm"
-      wget -P "$path_epel_rpm"
+      wget -P /tmp "$path_epel_rpm"
 
       rpm -e epel-release
       rpm -ivh /tmp/epel-release*.rpm
@@ -524,9 +529,9 @@ do_yum_repo
 
 # Version 2
 # 在线安装
-#do_install_addition_rpm online
+do_install_addition_rpm online
 # 离线安装
-do_install_addition_rpm offline
+#do_install_addition_rpm offline
 
 # 9. Yum安装Cobbler及其关联的软件包
 do_yum_refresh
