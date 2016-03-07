@@ -373,13 +373,17 @@ do_install_addition_rpm(){
   case "$install_method" in
     "online" )
       # 7. EPEL and PyYAML
+
       # EPEL
-      rm -rf /tmp/epel*
+      
+      # way one
+      #rm -rf /tmp/epel*
+      #wget -P /tmp "$path_epel_rpm"
+      #rpm -e epel-release
+      #rpm -ivh /tmp/epel-release*.rpm
 
-      wget -P /tmp "$path_epel_rpm"
-
-      rpm -e epel-release
-      rpm -ivh /tmp/epel-release*.rpm
+      # way two
+      wget -P "$file_sys_yum_repo_base" "$path_epel_file"
 
       # PyYAML
       rm -rf /tmp/PyYAML*
@@ -462,6 +466,8 @@ default_password="oracle"
 # EPEL的在线安装包
 #path_epel_rpm="http://mirrors.ustc.edu.cn/fedora/epel/6/x86_64/epel-release-6-8.noarch.rpm"
 path_epel_rpm="https://dl.fedoraproject.org/pub/epel/epel-release-latest-6.noarch.rpm"
+
+path_epel_file="http://mirrors.163.com/.help/CentOS6-Base-163.repo"
 
 # PyYAML的在线安装包
 path_pyyaml_rpm="ftp://ftp.icm.edu.pl/vol/rzm5/linux-oracle-repo/OracleLinux/OL6/openstack10/x86_64/getPackage/PyYAML-3.10-3.el6.x86_64.rpm"
