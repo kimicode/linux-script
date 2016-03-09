@@ -4,6 +4,8 @@
 #cdrom
 url --url=http://192.168.232.142/cobbler/ks_mirror/RHEL7-2-x86_64
 
+reboot
+
 # System authorization information
 auth --enableshadow --passalgo=sha512
 repo --name="Server-HighAvailability" --baseurl=file:///run/install/repo/addons/HighAvailability
@@ -11,11 +13,15 @@ repo --name="Server-ResilientStorage" --baseurl=file:///run/install/repo/addons/
 
 # Use graphical install
 graphical
+
 # Run the Setup Agent on first boot
-firstboot --enable
+firstboot --disable
+
 ignoredisk --only-use=sda
+
 # Keyboard layouts
 keyboard --vckeymap=us --xlayouts='us'
+
 # System language
 lang en_US.UTF-8 --addsupport=zh_CN.UTF-8
 
@@ -28,7 +34,6 @@ network  --hostname=rhel7
 # Root password
 rootpw --iscrypted $6$lEixIcmAnF6X4YKy$H9gO9hQH76soukGIpd4.qGbhHpoaZGIkZY7icx9CbXvDbpGpe/oPiLC9eJuf0yp9AADWN.VvKCL1ZgEPs99Ml/
 
-firewall --disabled
 selinux --disabled
 
 # System services
@@ -76,21 +81,27 @@ kexec-tools
 
 %post --interpreter=/bin/bash
 (
+# disable service
+systemctl disable firewalld.service
 
+# disable Gnome initial setup
+sed -i '/daemon/aInitialSetupEnable=False' /etc/gdm/custom.conf
+
+# Yum config
 cat <<EOF > /etc/yum.repos.d/rhel7.repo
 [ISO]
 name=ISO
-baseurl=
+baseurl=http://192.168.232.142/cobbler/ks_mirror/RHEL7-2-x86_64/
 gpgcheck=0
 
 [HighAvailability]
 name=HighAvailability
-baseurl=
+baseurl=http://192.168.232.142/cobbler/ks_mirror/RHEL7-2-x86_64/addons/HighAvailability/
 gpgcheck=0
 
 [ResilientStorage]
 name=ResilientStorage
-baseurl=
+baseurl=http://192.168.232.142/cobbler/ks_mirror/RHEL7-2-x86_64/addons/ResilientStorage/
 gpgcheck=0
 
 EOF
