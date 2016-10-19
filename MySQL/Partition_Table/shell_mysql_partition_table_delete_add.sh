@@ -24,7 +24,7 @@ echo "=================="
 ip="localhost"
 port="3306"
 user="adamhuan"
-password=oracle
+password=******
 db="adamhuan"
 table=event_by_day
 
