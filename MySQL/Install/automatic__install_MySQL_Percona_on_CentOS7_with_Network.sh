@@ -39,12 +39,12 @@ echo "------------------"
 # Prepare, Download dir, $dir_software
 if [ ! -x "$dir_software" ]
 then
-  echo "## $dir_software is ¡¾NOT¡¿ exsist"
+  echo "## $dir_software is [NOT] exsist"
   echo "## Action, create dir:: $dir_software"
   mkdir "$dir_software"
   echo ""
 else
-  echo "## $dir_software is ¡¾ALREADY¡¿ exsist"
+  echo "## $dir_software is [ALREADY] exsist"
   echo ""
 fi
 
@@ -53,25 +53,25 @@ echo "Download Link:: $download_link_mysql"
 echo ""
 
 # Do download
-echo "@@@ download,¡¾BEGIN¡¿:: "`date "+|%Y-%m-%d|%H:%M:%S|"`
+echo "@@@ download,[BEGIN]:: "`date "+|%Y-%m-%d|%H:%M:%S|"`
 echo ""
 
 wget -c -P $dir_software $download_link_mysql
 
-echo "@@@ download,¡¾DONE¡¿:: "`date "+|%Y-%m-%d|%H:%M:%S|"`
+echo "@@@ download,[DONE]:: "`date "+|%Y-%m-%d|%H:%M:%S|"`
 echo ""
 
 # un-tar MySQL media which we downloaded just now
 echo "## Un-tar file:: $dir_software/$str_download_soft"
 echo ""
 
-echo "## Action, un-tar, ¡¾BEGIN¡¿:: "`date`
+echo "## Action, un-tar, [BEGIN]:: "`date`
 echo ""
 
 tar -xvf $dir_software/$str_download_soft -C $dir_software
 
 echo ""
-echo "## Action, un-tar, ¡¾FINISHED¡¿:: "`date`
+echo "## Action, un-tar, [FINISHED]:: "`date`
 echo ""
 
 # YUM:: createrepo
@@ -106,12 +106,12 @@ echo ""
 yum list | grep --color Percona-Server
 
 echo "YUM:: Install Percona-Server"
-echo "@@ YUM, Percona-Server, ¡¾BEGIN¡¿:: "`date`
+echo "@@ YUM, Percona-Server, [BEGIN]:: "`date`
 echo ""
 
 yum install -y Percona-Server*
 
-echo "@@ YUM, Percona-Server, ¡¾BEGIN¡¿:: "`date`
+echo "@@ YUM, Percona-Server, [BEGIN]:: "`date`
 echo ""
 
 # Percona-Server: enable on boot, running right now
@@ -128,9 +128,9 @@ echo ""
 echo "## Change MySQL Password."
 #mysql -u'root' -p'$str_mysql_passwd_temporary' -e "<SQL Statement>"
 mysqladmin -u root -p'$str_mysql_passwd_temporary' password '$str_mysql_passwd_cust'
-echo "## Password change, has been ¡¾DONE¡¿."
+echo "## Password change, has been [DONE]."
 
-echo "## MySQL ¡¾Current¡¿ Password for root@localhost is:: $str_mysql_passwd_cust"
+echo "## MySQL [Current] Password for root@localhost is:: $str_mysql_passwd_cust"
 echo ""
 
 echo "============="
