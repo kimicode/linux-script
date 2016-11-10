@@ -150,6 +150,41 @@ do
 
 done
 
+echo "----------------"
+echo "RPM: trousers"
+
+yum install -y trousers
+
+echo "----------------"
+echo "INIT Zabbix DB"
+
+zcat /usr/share/doc/zabbix-server-mysql-3.2.1/create.sql.gz | mysql -uzabbix -p'Abcd!234' zabbix
+
+echo "----------------"
+echo "Config HTTPD for Zabbix"
+old_DBHost=`cat /etc/zabbix/zabbix_server.conf | grep ^DBHost | cut -d'=' -f 2'`
+old_DBName=`cat /etc/zabbix/zabbix_server.conf | grep ^DBName | cut -d'=' -f 2'`
+old_DBUser=`cat /etc/zabbix/zabbix_server.conf | grep ^DBUser | cut -d'=' -f 2'`
+old_DBPassword=`cat /etc/zabbix/zabbix_server.conf | grep ^DBPassword | cut -d'=' -f 2'`
+
+sed -i "^DBHost/s//192.168.111.147/" /etc/zabbix/zabbix_server.conf
+sed -i "^DBName/s//zabbix/" /etc/zabbix/zabbix_server.conf
+sed -i "^DBUser/s//zabbix/" /etc/zabbix/zabbix_server.conf
+sed -i "^DBPassword/s//'Abcd!234'/" /etc/zabbix/zabbix_server.conf
+
+echo "----------------"
+echo "Start Zabbix Service"
+
+systemctl enable zabbix-server
+systemctl start zabbix-server
+
+echo "----------------"
+echo "Start HTTPD Service"
+
+systemctl enable httpd
+systemctl start httpd
+
+
 echo "=================================="
 echo "Finished:: "`date`
 echo "-----------------"
