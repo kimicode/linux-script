@@ -1,5 +1,3 @@
-#!/bin/bash
-
 # automatic install MySQL Percona
 # Script Type: shell
 # Author: adamhuan
@@ -22,7 +20,11 @@ dir_yum_repo="/etc/yum.repos.d/"
 file_yum_repo_local_percona="percona_local.repo"
 
 file_mysql_log_error="/var/log/mysqld.log"
-str_mysql_passwd_cust="Abcd!234"
+#str_mysql_passwd_cust="Abcd!234"
+#str_mysql_passwd_cust="Oracle_1234"
+str_mysql_passwd_cust="Oracle@1234"
+
+file_percona_config="/etc/percona-server.conf.d/mysqld.cnf"
 
 # Function
 
@@ -111,12 +113,20 @@ echo ""
 
 yum install -y Percona-Server*
 
-echo "@@ YUM, Percona-Server, [BEGIN]:: "`date`
+# 退回步骤：
+# service mysql stop
+# yum remove Percona-Server* -y
+
+echo "@@ YUM, Percona-Server, [Finished]:: "`date`
 echo ""
 
 # Percona-Server: enable on boot, running right now
-systemctl enable mysql
-systemctl start mysql
+echo "## Start and enable MySQL Service: Percona-Server."
+#systemctl enable mysql.service
+systemctl start mysql.service
+
+# sleep 3
+sleep 3
 
 # Percona-Server: password
 str_mysql_passwd_temporary=`cat $file_mysql_log_error | grep --color "A temporary password is generated for" | cut -d':' -f4 | cut -d' ' -f2`
@@ -124,13 +134,26 @@ str_mysql_passwd_temporary=`cat $file_mysql_log_error | grep --color "A temporar
 echo "## MySQL Temprary Password for root@localhost is:: $str_mysql_passwd_temporary"
 echo ""
 
-# change password
-echo "## Change MySQL Password."
-#mysql -u'root' -p'$str_mysql_passwd_temporary' -e "<SQL Statement>"
-mysqladmin -u root -p'$str_mysql_passwd_temporary' password '$str_mysql_passwd_cust'
-echo "## Password change, has been [DONE]."
+# Percona-Server: change config
+cat <<EOF >> $file_percona_config
+[client]
+password=$str_mysql_passwd_temporary
+EOF
 
-echo "## MySQL [Current] Password for root@localhost is:: $str_mysql_passwd_cust"
+# change password
+echo "## Change MySQL Password. from:: $str_mysql_passwd_temporary | to:: $str_mysql_passwd_cust"
+echo ""
+#mysql -u'root' -p'$str_mysql_passwd_temporary' -e "<SQL Statement>"
+
+mysqladmin -u root password '$str_mysql_passwd_cust'
+
+#echo "## Password change, has been [DONE]."
+
+# change Percona-Server config file:
+sed -i "/password/s/$str_mysql_passwd_temporary/$str_mysql_passwd_cust/" $file_percona_config
+echo "## MySQL config file, has been [CHANGED] to current new password."
+
+echo "## Password change, has been [DONE]."
 echo ""
 
 echo "============="
