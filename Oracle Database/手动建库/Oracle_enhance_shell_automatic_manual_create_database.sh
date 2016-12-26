@@ -147,8 +147,10 @@ user system identified by $var_oracle_db_sys_password
 ;
 @?/rdbms/admin/catalog.sql;
 @?/rdbms/admin/catproc.sql;
+@?/rdbms/admin/utlsampl.sql;
 conn system/oracle;
 @?/sqlplus/admin/pupbld.sql;
+
 SQLPLUS"
   #sqlplus_do_action "create spfile from pfile"
 }
