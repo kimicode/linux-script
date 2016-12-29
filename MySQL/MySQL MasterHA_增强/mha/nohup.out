@@ -1,0 +1,72 @@
+Wed Dec 14 10:11:38 2016 - [info] Reading default configuration from /etc/masterha_default.cnf..
+Wed Dec 14 10:11:38 2016 - [info] Reading application default configuration from /etc/masterha_application_1.cnf..
+Wed Dec 14 10:11:38 2016 - [info] Reading server configuration from /etc/masterha_application_1.cnf..
+  Creating /work_dir/mha_node if not exists..    ok.
+  Checking output directory is accessible or not..
+   ok.
+  Binlog found at /var/lib/mysql, up to mysql-bin.000005
+Wed Dec 14 10:13:39 2016 - [info] Reading default configuration from /etc/masterha_default.cnf..
+Wed Dec 14 10:13:39 2016 - [info] Reading application default configuration from /etc/masterha_application_1.cnf..
+Wed Dec 14 10:13:39 2016 - [info] Reading server configuration from /etc/masterha_application_1.cnf..
+Wed Dec 14 12:44:09 2016 - [info] Reading default configuration from /etc/masterha_default.cnf..
+Wed Dec 14 12:44:09 2016 - [info] Reading application default configuration from /etc/masterha_application_1.cnf..
+Wed Dec 14 12:44:09 2016 - [info] Reading server configuration from /etc/masterha_application_1.cnf..
+  Creating /work_dir/mha_node if not exists..    ok.
+  Checking output directory is accessible or not..
+   ok.
+  Binlog found at /var/lib/mysql, up to mysql-bin.000006
+  Creating /work_dir/mha_node if not exists..    ok.
+  Checking output directory is accessible or not..
+   ok.
+  Binlog found at /var/lib/mysql, up to mysql-bin.000006
+  Creating /work_dir/mha_node if not exists..    ok.
+  Checking output directory is accessible or not..
+   ok.
+  Binlog found at /var/lib/mysql, up to mysql-bin.000006
+Wed Dec 14 13:01:06 2016 - [info] Reading default configuration from /etc/masterha_default.cnf..
+Wed Dec 14 13:01:06 2016 - [info] Reading application default configuration from /etc/masterha_application_1.cnf..
+Wed Dec 14 13:01:06 2016 - [info] Reading server configuration from /etc/masterha_application_1.cnf..
+  Creating /work_dir/mha_node if not exists..    ok.
+  Checking output directory is accessible or not..
+   ok.
+  Binlog found at /var/lib/mysql, up to mysql-bin.000006
+Wed Dec 14 13:32:39 2016 - [info] Reading default configuration from /etc/masterha_default.cnf..
+Wed Dec 14 13:32:39 2016 - [info] Reading application default configuration from /etc/masterha_application_1.cnf..
+Wed Dec 14 13:32:39 2016 - [info] Reading server configuration from /etc/masterha_application_1.cnf..
+Wed Dec 14 13:43:28 2016 - [info] Reading default configuration from /etc/masterha_default.cnf..
+Wed Dec 14 13:43:28 2016 - [info] Reading application default configuration from /etc/masterha_application_1.cnf..
+Wed Dec 14 13:43:28 2016 - [info] Reading server configuration from /etc/masterha_application_1.cnf..
+  Creating /work_dir/mha_node if not exists..    ok.
+  Checking output directory is accessible or not..
+   ok.
+  Binlog found at /var/lib/mysql, up to mysql-bin.000005
+Wed Dec 14 13:44:05 2016 - [info] Reading default configuration from /etc/masterha_default.cnf..
+Wed Dec 14 13:44:05 2016 - [info] Reading application default configuration from /etc/masterha_application_1.cnf..
+Wed Dec 14 13:44:05 2016 - [info] Reading server configuration from /etc/masterha_application_1.cnf..
+Wed Dec 14 17:48:16 2016 - [info] Reading default configuration from /etc/masterha_default.cnf..
+Wed Dec 14 17:48:16 2016 - [info] Reading application default configuration from /etc/masterha_application_1.cnf..
+Wed Dec 14 17:48:16 2016 - [info] Reading server configuration from /etc/masterha_application_1.cnf..
+Wed Dec 14 17:51:25 2016 - [info] Reading default configuration from /etc/masterha_default.cnf..
+Wed Dec 14 17:51:25 2016 - [info] Reading application default configuration from /etc/masterha_application_1.cnf..
+Wed Dec 14 17:51:25 2016 - [info] Reading server configuration from /etc/masterha_application_1.cnf..
+  Creating /work_dir/mha_node if not exists..    ok.
+  Checking output directory is accessible or not..
+   ok.
+  Binlog found at /var/lib/mysql, up to mysql-bin.000007
+Wed Dec 14 17:51:58 2016 - [info] Reading default configuration from /etc/masterha_default.cnf..
+Wed Dec 14 17:51:58 2016 - [info] Reading application default configuration from /etc/masterha_application_1.cnf..
+Wed Dec 14 17:51:58 2016 - [info] Reading server configuration from /etc/masterha_application_1.cnf..
+Wed Dec 14 20:17:22 2016 - [info] Reading default configuration from /etc/masterha_default.cnf..
+Wed Dec 14 20:17:22 2016 - [info] Reading application default configuration from /etc/masterha_application_1.cnf..
+Wed Dec 14 20:17:22 2016 - [info] Reading server configuration from /etc/masterha_application_1.cnf..
+  Creating /work_dir/mha_node if not exists..    ok.
+  Checking output directory is accessible or not..
+   ok.
+  Binlog found at /var/lib/mysql, up to mysql-bin.000010
+  Creating /work_dir/mha_node if not exists..    ok.
+  Checking output directory is accessible or not..
+   ok.
+  Binlog found at /var/lib/mysql, up to mysql-bin.000010
+Wed Dec 14 20:27:14 2016 - [info] Reading default configuration from /etc/masterha_default.cnf..
+Wed Dec 14 20:27:14 2016 - [info] Reading application default configuration from /etc/masterha_application_1.cnf..
+Wed Dec 14 20:27:14 2016 - [info] Reading server configuration from /etc/masterha_application_1.cnf..
