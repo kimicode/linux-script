@@ -14,22 +14,23 @@
 # 有的操作系统，grep中出现就“-”，会在过滤的时候出现异常
 # 在后续的脚本更新中，要补全这个BUG
 #str_identify_binlog="-bin."
-str_identify_binlog="-bin."
+#特殊字符需要转义，像这样：\-
+str_identify_binlog="bin."
 
 # binlog的清理时长
 # 单位，天
-how_long_binlog_be_purged="2"
+how_long_binlog_be_purged="3"
 
 # string
 str_mysql_ip=""
 str_mysql_user="root"
-str_mysql_password="leochen"
+str_mysql_password="Abcd1@34"
 
 # file director name
 file_mysql_conf="/etc/my.cnf"
 
 # file path
-path_mysql_binlog="/data/mysql/binlog"
+path_mysql_binlog="/var/lib/mysql"
 #path_mysql_binlog=`cat $file_mysql_conf | grep --color "log-bin =" | cut -d'#' -f1 | cut -d'=' -f2 | rev | cut -d'/' -f2,3,4,5 | rev`
 
 # Notice:
@@ -152,7 +153,7 @@ function do_binlog_cp(){
   #f_current_binlog="$1"
   f_current_binlog=$file_mysql_binlog
 
-  for binlog_item in `ls $path_mysql_binlog | grep --color "$str_identify_binlog" | grep -v -E "index|$f_current_binlog"`
+  for binlog_item in `ls $path_mysql_binlog | grep --color "$str_identify_binlog" | grep -v -E "relay|index|$f_current_binlog"`
   do
     echo "Current item is:: $binlog_item"
     echo "Target directory is:: $path_binlog_backup"
@@ -208,18 +209,43 @@ function do_mysql_purge() {
 
   f_new_date_full=`date "+|%Y-%m-%d|" | cut -d'|' -f2 | cut -d'-' -f1,2`"-$f_new_day"
 
-  f_file_purge_binlog=`ls -ltr --time-style="+|%Y-%m-%d|%H:%M:%S|" $path_mysql_binlog | grep $f_new_date_full | tail -n 1 | awk '{print $7}'`
+  # 这一部分，逻辑有问题
+  #f_file_purge_binlog=`ls -ltr --time-style="+|%Y-%m-%d|%H:%M:%S|" $path_mysql_binlog | grep $f_new_date_full | tail -n 1 | awk '{print $7}'`
 
-  #echo "Current Day:: $f_day"
-  #echo "New Day:: $f_new_day"
-  #echo "New Date Full:: $f_new_date_full"
+  # ok
+  #f_file_purge_binlog=`ls -ltr --time-style="+|%Y-%m-%d|%H:%M:%S|" $path_mysql_binlog | grep "$str_identify_binlog" | grep -v -E "relay|index|$f_current_binlog" | grep $f_new_date_full | tail -n 1 | awk '{print $7}'`
+  # ok
+
+  #f_file_purge_binlog=`ls -ltr --time-style="+|%Y-%m-%d|%H:%M:%S|" $path_mysql_binlog | grep $str_identify_binlog | grep -v -E "relay|index" | grep $f_new_date_full | tail -n 1 | awk '{print $7}'`
+
+  #f_file_purge_binlog=`ls -ltr --time-style="+|%Y-%m-%d|%H:%M:%S|" $path_mysql_binlog | grep "$str_identify_binlog" | grep -v -E "relay|index|$file_mysql_binlog" | grep $f_new_date_full | tail -n 1 | awk '{print $7}'`
+
+  #f_file_purge_binlog=`ls -ltr --time-style="+|%Y-%m-%d|%H:%M:%S|" $path_mysql_binlog | grep --color "$str_identify_binlog" | grep -v -E "relay|index|$file_mysql_binlog" | grep $f_new_date_full | tail -n 1 | awk '{print $7}'`
+
+  #f_file_purge_binlog=`ls -ltr --time-style="+|%Y-%m-%d|%H:%M:%S|" $path_mysql_binlog | grep --color "$str_identify_binlog" | grep -v -E "relay|index|$file_mysql_binlog" | grep "$f_new_date_full" | tail -n 1 | awk '{print $7}'`
+
+  f_file_purge_binlog=`ls -ltr --time-style="+|%Y-%m-%d|%H:%M:%S|" $path_mysql_binlog | grep "$str_identify_binlog" | grep -v -E "relay|index|$f_current_binlog" | grep $f_new_date_full | tail -n 1 | awk '{print $7}'`
+
+  echo "identify binlog:: $str_identify_binlog"
+  echo "Current Day:: $f_day"
+  echo "New Day:: $f_new_day"
+  echo "New Date Full:: $f_new_date_full"
   echo "Purge binlog is:: $f_file_purge_binlog"
+
+  echo "!!! before purge !!!"
+
+  do_sql localhost "show master logs;"
+  echo ""
 
   echo "!!! do purge !!!"
 
-  do_sql localhost "purge master logs to '$f_file_purge_binlog'"
+  do_sql localhost "purge master logs to '$f_file_purge_binlog';"
+  echo ""
 
-  echo "!!! Already done !!!"
+  echo "!!! after purge !!!"
+
+  do_sql localhost "show master logs;"
+  echo ""
 
   echo ""
 }
