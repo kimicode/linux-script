@@ -10,6 +10,13 @@
 
 # variable
 
+# binlog的过滤条件
+str_identify_binlog="-bin."
+
+# binlog的清理时长
+# 单位，天
+how_long_binlog_be_purged="2"
+
 # string
 str_mysql_ip=""
 str_mysql_user="root"
@@ -142,7 +149,7 @@ function do_binlog_cp(){
   #f_current_binlog="$1"
   f_current_binlog=$file_mysql_binlog
 
-  for binlog_item in `ls $path_mysql_binlog | grep -v -E "index|$f_current_binlog"`
+  for binlog_item in `ls $path_mysql_binlog | grep --color "$str_identify_binlog" | grep -v -E "index|$f_current_binlog"`
   do
     echo "Current item is:: $binlog_item"
     echo "Target directory is:: $path_binlog_backup"
@@ -232,7 +239,7 @@ do_tar
 
 # 清理MySQL的binlog
 # 清理间隔
-do_mysql_purge "-" "2"
+do_mysql_purge "-" "$how_long_binlog_be_purged"
 
 ### -----------------------
 
