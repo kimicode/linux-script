@@ -11,6 +11,9 @@
 # variable
 
 # binlog的过滤条件
+# 有的操作系统，grep中出现就“-”，会在过滤的时候出现异常
+# 在后续的脚本更新中，要补全这个BUG
+#str_identify_binlog="-bin."
 str_identify_binlog="-bin."
 
 # binlog的清理时长
