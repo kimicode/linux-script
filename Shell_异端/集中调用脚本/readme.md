@@ -2,7 +2,7 @@
 如果调用的一个命令中带有空格，需要用引号包起来。
 
 具体如下：
-
+```
 [root@center-linux script]# sh run_1.sh
 I am jack.
 I ask for rose for some help.
@@ -27,7 +27,7 @@ I am rose.
  -- result: well
 
 [root@center-linux script]#
-
+```
 ——————————————————————————————————————————
 Done。
 2017年1月23日09:56:00
