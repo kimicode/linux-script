@@ -226,6 +226,9 @@ function do_mysql_purge() {
 
   f_file_purge_binlog=`ls -ltr --time-style="+|%Y-%m-%d|%H:%M:%S|" $path_mysql_binlog | grep "$str_identify_binlog" | grep -v -E "relay|index|$f_current_binlog" | grep $f_new_date_full | tail -n 1 | awk '{print $7}'`
 
+  # 在有的mysql的配置下，可能上面的截取有问题，可以使用下面的方法：
+  #f_file_purge_binlog=`ls -ltr --time-style="+|%Y-%m-%d|%H:%M:%S|" $path_mysql_binlog | grep "$str_identify_binlog" | grep -v -E "relay|index" | grep $f_new_date_full | tail -n 1 | awk '{print $7}'`
+
   echo "identify binlog:: $str_identify_binlog"
   echo "Current Day:: $f_day"
   echo "New Day:: $f_new_day"
