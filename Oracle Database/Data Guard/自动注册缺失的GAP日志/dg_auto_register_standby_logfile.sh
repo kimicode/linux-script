@@ -94,7 +94,7 @@ do
   # variable
   # tail -f /oracle/ERN/saptrace/diag/rdbms/standby1/ERN/trace/alert_ERN.log | grep "gap sequence"
 
-  standby_log_file_like_str_ahead_Instance="$standby_logfile_dir/ERNarch"$thread_number"_"$loop_cursor_1"_838089898.dbf"
+  standby_log_file_like_str_ahead_Instance="$standby_logfile_dir/ERNarch"$thread_number"_"$loop_cursor_1"_705619077.dbf"
   standby_log_file_like_str_ahead_standby="$standby_logfile_dir/standby1_"$thread_number"_"$loop_cursor_1"_705619077.arch"
 
   # 文件是否存在
