@@ -12,6 +12,9 @@
 # --------------------------
 # variable and file path
 
+# Part:: this script
+str_mha_application=$1
+
 # Part:: Linux
 # Account info
 str_linux_username="root"
@@ -26,17 +29,21 @@ str_repl_password=Or@cle123
 
 # Part:: MHA
 # pid
-str_pid_masterha_manager=`ps -ef | grep masterha_manager | grep perl | awk '{print $2}'`
+#str_pid_masterha_manager=`ps -ef | grep masterha_manager | grep perl | awk '{print $2}'`
+
+str_pid_masterha_manager=`ps -ef | grep masterha_manager | grep "$str_mha_application" | grep perl | awk '{print $2}'`
 
 # file
 file_conf_mha_global="/etc/masterha_default.cnf"
-file_conf_mha_application="/etc/masterha_application_1.cnf"
+
+#file_conf_mha_application="/etc/masterha_application_1.cnf"
+file_conf_mha_application="/etc/$str_mha_application.cnf"
 
 # file: relation / by computed
 file_log_mha_manager=`cat $file_conf_mha_application | grep --color manager_log | cut -d'=' -f2`
 
 # variable: ip info
-# Èç¹ûMHAÖĞMySQLÖ÷¿âµÄºòÑ¡·şÎñÆ÷ÊıÁ¿³¬¹ıÁËÁ½Ì¨£¬Ò²ĞíÏÂÃæÕâ¸ölist²ÎÊı£¬¾Í»áÅÅÉÏÓÃ³¡
+# å¦‚æœMHAä¸­MySQLä¸»åº“çš„å€™é€‰æœåŠ¡å™¨æ•°é‡è¶…è¿‡äº†ä¸¤å°ï¼Œä¹Ÿè®¸ä¸‹é¢è¿™ä¸ªlistå‚æ•°ï¼Œå°±ä¼šæ’ä¸Šç”¨åœº
 list_ip_candicate=`cat $file_conf_mha_application | grep -B 2 "^candidate" | grep "hostname" | cut -d'=' -f2`
 
 str_ip_orig_master=`cat $file_log_mha_manager | grep --color "MySQL Master failover" | cut -d'(' -f2 | cut -d':' -f1 | tail -n 1`
@@ -44,7 +51,7 @@ str_ip_new_master=`cat $file_log_mha_manager | grep --color "MySQL Master failov
 
 str_ip_mha_manager="10.158.1.94"
 
-# Îª[change master]×¼±¸µÄ²ÎÊı
+# ä¸º[change master]å‡†å¤‡çš„å‚æ•°
 str_log_file_new_master=""
 str_log_pos_new_master=""
 
@@ -60,12 +67,12 @@ function do_sql() {
   func_str_sql="$2"
 
   # action
-  # ±¾³¡¾°ÖĞ²»Éæ¼°µ½¶ÔMySQLÄ³¸ö¿âµÄ²Ù×÷£¬ËùÒÔÃ»ÓĞÑ¡Ôñ[db]
+  # æœ¬åœºæ™¯ä¸­ä¸æ¶‰åŠåˆ°å¯¹MySQLæŸä¸ªåº“çš„æ“ä½œï¼Œæ‰€ä»¥æ²¡æœ‰é€‰æ‹©[db]
   # mysql -u $user -p"$password" $db -N -e "$f_sql_str"
   mysql -u $str_mysql_username -h $func_str_ip -p"$str_mysql_password" -N -e "$func_str_sql"
 }
 
-# »ñÈ¡Ö÷¿â×´Ì¬ĞÅÏ¢
+# è·å–ä¸»åº“çŠ¶æ€ä¿¡æ¯
 #function get_info_mysql_master_new_master() {
   # version ONE
   #str_log_file_new_master=`do_sql "$str_ip_new_master" "show master status" | awk '{print $1}'`
@@ -73,7 +80,7 @@ function do_sql() {
 
 #}
 
-# Éú³Éorig_master×÷Îªslave¼ÓÈënew_masterµÄ[change master]SQLÃüÁî
+# ç”Ÿæˆorig_masterä½œä¸ºslaveåŠ å…¥new_masterçš„[change master]SQLå‘½ä»¤
 function gen_sql_mysql_change_master() {
   #if [[ "$str_log_file_new_master" == "" || $str_log_pos_new_master == "" ]]
   #then
@@ -92,10 +99,10 @@ function gen_sql_mysql_change_master() {
   str_sql_mysql_change_master=`echo $str_sql_mysql_change_master | sed "s/'$func_temp_master_host_sed'/'$str_ip_new_master'/g"`
 }
 
-# ¶ÔÖ¸¶¨Ö÷»úÖ´ĞĞLinuxÃüÁî
-# Ç°Ìá£º
-# 1. IP¿É´ï
-# 2. SSHµÈ¼Û¹ØÏµ
+# å¯¹æŒ‡å®šä¸»æœºæ‰§è¡ŒLinuxå‘½ä»¤
+# å‰æï¼š
+# 1. IPå¯è¾¾
+# 2. SSHç­‰ä»·å…³ç³»
 function do_linux_by_ssh() {
   # variable
   func_str_ip="$1"
@@ -106,7 +113,7 @@ function do_linux_by_ssh() {
   ssh -t $func_str_user@$func_str_ip "$func_str_command"
 }
 
-# ´¦ÀíVIPµÄÊÂÒË
+# å¤„ç†VIPçš„äº‹å®œ
 function do_part_vip() {
   do_linux_by_ssh "$str_ip_new_master" "root" "service keepalived start"
   do_linux_by_ssh "$str_ip_orig_master" "root" "service keepalived stop"
@@ -123,7 +130,7 @@ function do_part_mha_master_manager_start() {
   do_linux_by_ssh "$str_ip_mha_manager" "root" "nohup masterha_manager --conf=$file_conf_mha_application --ignore_last_failover &"
 }
 
-# Èç¹ûPID²»´æÔÚ£¬ÔòÖ´ĞĞ¸Ã½Å±¾£¬·ñÔò£¬ÍË³ö
+# å¦‚æœPIDä¸å­˜åœ¨ï¼Œåˆ™æ‰§è¡Œè¯¥è„šæœ¬ï¼Œå¦åˆ™ï¼Œé€€å‡º
 function runable_by_mha_manager_pid() {
   echo "-----------------"
   echo "Script for MySQL Master HA"
@@ -146,7 +153,7 @@ function runable_by_mha_manager_pid() {
 # --------------------------
 # action
 
-# Èç¹ûPID²»´æÔÚ£¬ÔòÖ´ĞĞ¸Ã½Å±¾£¬·ñÔò£¬ÍË³ö
+# å¦‚æœPIDä¸å­˜åœ¨ï¼Œåˆ™æ‰§è¡Œè¯¥è„šæœ¬ï¼Œå¦åˆ™ï¼Œé€€å‡º
 echo "------------------"
 echo "app: runable_by_mha_manager_pid"
 runable_by_mha_manager_pid
