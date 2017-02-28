@@ -21,6 +21,8 @@ function say_begin_end() {
 
 say_begin_end "begin"
 
+echo ""
+
 if [ ! -x "$str_path_rman_log_dir" ]
 then
   mkdir -p "$str_path_rman_log_dir"
@@ -32,7 +34,10 @@ run{
 crosscheck archivelog all;
 delete noprompt archivelog until time "sysdate-$int_keep_day";
 }
+exit
 EOF
+
+echo ""
 
 say_begin_end "end"
 
