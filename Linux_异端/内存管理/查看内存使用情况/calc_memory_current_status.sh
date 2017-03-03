@@ -3,7 +3,32 @@
 #for_RHEL7="Available"
 #for_RHEL6="Free"
 
-Available_sign="Free"
+str_release=`cat /etc/redhat-release`
+
+#Available_sign="Available"
+
+Available_sign=""
+
+if [[ $str_release =~ 7 ]]
+then
+  echo "## SYSTEM is Linux 7"
+  Available_sign="Available"
+elif [[ $str_release =~ 6 ]]
+then
+  echo "## SYSTEM is Linux 6"
+  Available_sign="Free"
+else
+  echo "## can not identified"
+fi
+echo "OS Release is:"
+
+echo $str_release
+
+echo ""
+
+echo "Sign is: [$Available_sign]"
+
+
 
 mem_total=`cat /proc/meminfo  | grep --color MemTotal | awk '{print $2}'`
 mem_available=`cat /proc/meminfo  | grep --color Mem$Available_sign | awk '{print $2}'`
