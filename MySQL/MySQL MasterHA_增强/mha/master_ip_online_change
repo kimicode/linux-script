@@ -248,8 +248,14 @@ sub main {
       $new_master_handler->disconnect();
 
       ## Update master ip on the catalog database, etc
-      `/usr/bin/ssh -t root\@${orig_master_ip} "service keepalived stop"`;
-      `/usr/bin/ssh -t root\@${new_master_ip} "service keepalived start"`;
+      # version 1
+      #`/usr/bin/ssh -t root\@${orig_master_ip} "service keepalived stop"`;
+      #`/usr/bin/ssh -t root\@${new_master_ip} "service keepalived start"`;
+
+      # version 2
+      `/usr/bin/ssh -t root\@${orig_master_ip} "/script/shell/do_vip_crontab.sh 1 0"`;
+      `/usr/bin/ssh -t root\@${new_master_ip} "/script/shell/do_vip_crontab.sh 0 1"`;
+
       $exit_code = 0;
     };
     if ($@) {
@@ -274,4 +280,3 @@ sub usage {
 "Usage: master_ip_online_change --command=start|stop|status --orig_master_host=host --orig_master_ip=ip --orig_master_port=port --new_master_host=host --new_master_ip=ip --new_master_port=port\n";
   die;
 }
-

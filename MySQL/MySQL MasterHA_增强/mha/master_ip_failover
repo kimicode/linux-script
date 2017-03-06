@@ -93,9 +93,14 @@ sub main {
       #FIXME_xxx;
 
       `echo "script begin running..." > /work_dir/mha_manager/test_me/master_ip_failover_run_shell`;
-      
-      `/usr/bin/ssh -t root\@${orig_master_ip} "service keepalived stop" > /work_dir/mha_manager/test_me/orig_master.log`;
-      `/usr/bin/ssh -t root\@${new_master_ip} "service keepalived start" > /work_dir/mha_manager/test_me/new_master.log`;
+
+      # version 1
+      #`/usr/bin/ssh -t root\@${orig_master_ip} "service keepalived stop" > /work_dir/mha_manager/test_me/orig_master.log`;
+      #`/usr/bin/ssh -t root\@${new_master_ip} "service keepalived start" > /work_dir/mha_manager/test_me/new_master.log`;
+
+      #version 2
+      `/usr/bin/ssh -t root\@${orig_master_ip} "/script/shell/do_vip_crontab.sh 1 0" > /work_dir/mha_manager/test_me/orig_master.log`;
+      `/usr/bin/ssh -t root\@${new_master_ip} "/script/shell/do_vip_crontab.sh 0 1" > /work_dir/mha_manager/test_me/new_master.log`;
 
       `sh /script/shell/do_mha.sh > /work_dir/mha_manager/test_me/do_mha.log`;
 
@@ -124,4 +129,3 @@ sub usage {
   print
 "Usage: master_ip_failover --command=start|stop|stopssh|status --orig_master_host=host --orig_master_ip=ip --orig_master_port=port --new_master_host=host --new_master_ip=ip --new_master_port=port\n";
 }
-
