@@ -31,13 +31,14 @@ str_nic_name="eth0:0"
 file_crontab_dir="/var/spool/cron"
 file_crontab_conf="$file_crontab_dir/root"
 
-str_crontab_command="data +%Y-%m-%d"
+str_crontab_command="echo 'hello world' > /tmp/me"
 str_crontab_date="10 11 * * *"
 
+str_crontab_command_sed=`echo "$str_crontab_command" | sed 's/\//\\\//g'`
 str_crontab_date_sed=`echo "$str_crontab_date" | sed 's/*/\\\*/g'`
 
 str_crontab_full="$str_crontab_date $str_crontab_command"
-str_crontab_full_sed="$str_crontab_date_sed $str_crontab_command"
+str_crontab_full_sed="$str_crontab_date_sed $str_crontab_command_sed"
 
 str_block_crontab_content=`cat $file_crontab_conf | grep -v '#'`
 
@@ -47,9 +48,18 @@ echo "Crontab content:"
 echo "$str_block_crontab_content"
 echo ""
 
+echo "var: str_crontab_date --> $str_crontab_date"
+echo "var: str_crontab_command --> $str_crontab_command"
+echo "--------------------------------------------"
 echo "var: str_crontab_full --> $str_crontab_full"
+
+echo ""
+
 echo "var: str_crontab_date_sed --> $str_crontab_date_sed"
+echo "var: str_crontab_command_sed --> $str_crontab_command_sed"
+echo "--------------------------------------------"
 echo "var: str_crontab_full_sed --> $str_crontab_full_sed"
+
 echo ""
 
 # running
