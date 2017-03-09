@@ -16,6 +16,8 @@ temp_path_binlog_sql=/mysql_data/input_text
 mysql_user='root'
 mysql_password=Oracle1@34
 
+mysql_port="3306"
+
 str_mysql_binlog=""
 
 file_mysql_cnf=/etc/my.cnf
@@ -52,7 +54,7 @@ function do_sql() {
   # action
   # 本场景中不涉及到对MySQL某个库的操作，所以没有选择[db]
   # mysql -u $user -p"$password" $db -N -e "$f_sql_str"
-  mysql -u $mysql_user -h $func_str_ip -p"$mysql_password" -N -e "$func_str_sql"
+  mysql -u $mysql_user -h $func_str_ip -P$mysql_port -p"$mysql_password" -N -e "$func_str_sql"
 }
 
 function get_mysql_binlog_file() {
