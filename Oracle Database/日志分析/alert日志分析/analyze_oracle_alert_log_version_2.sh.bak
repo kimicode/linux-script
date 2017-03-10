@@ -15,6 +15,7 @@ string_find="^ORA-"
 
 # --> temporary used
 block_data=""
+file_temp_block_data="/tmp/block_data"
 
 # -->
 
@@ -96,8 +97,12 @@ function analyze_error_ORA() {
 	echo "Total count is: [$f_target_data_list_count]"
 	echo "-----------------------"
 	
+	# Put data into temp file
+	echo "$f_target_data_list" > $file_temp_block_data
+	
 	# ---> do while loop
-	echo "$f_target_data_list" | while read item_target
+	#echo "$f_target_data_list" | while read item_target
+	while read item_target
 	do
 		# while begin
 		echo "----------- $while_cursor_1"
@@ -118,7 +123,7 @@ function analyze_error_ORA() {
 			#echo "$error_list_ora_code"
 		else
 			error_list_ora_code="$error_list_ora_code $while_current_ora_code"
-			echo "### Error code is [not] already in the List."
+			echo "### Error code is [not] in the List."
 			#echo "### error list is:"
 			#echo "$error_list_ora_code"
 		fi
@@ -130,10 +135,10 @@ function analyze_error_ORA() {
 		while_content_before=$while_current_ora_code
 		let "while_cursor_1++"
 		echo ""
-	done
+	done < $file_temp_block_data
 	
 	# for test
-	#error_list_ora_code="1 2 3 4"
+	#error_list_ora_code="1 2 3 4" # 在这里传参就没有问题
 	
 	echo "### [out while] error list is:"
 	echo "$error_list_ora_code"

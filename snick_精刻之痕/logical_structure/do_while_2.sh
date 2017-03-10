@@ -2,25 +2,30 @@
 
 list_me=""
 
-read_me="
-a
+read_me="a
 b
 c
 d
 1
 2
 3
-4
-"
+4"
 
 function get_value() {
   echo "read_me is: [$read_me]"
-  echo "$read_me" | while read item
+  #echo "$read_me" | while read item
+  #do
+  #  echo "------------"
+  #  echo "current is: $item"
+  #  list_me="$list_me $item"
+  #done
+
+  while read item
   do
     echo "------------"
     echo "current is: $item"
     list_me="$list_me $item"
-  done
+  done < $(echo "$read_me")
 
   #test
   #list_me="1 2 3"
