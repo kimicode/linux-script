@@ -45,9 +45,9 @@ function display_banner() {
   # variable
   f_str_banner="$1"
   # logical
-  
+
   echo ""
-  
+
   echo "--------------"
   echo "Current:: $f_str_banner"
   echo "--------------"
@@ -82,10 +82,10 @@ function fill_data_in_variable() {
 
 # --> Analyze error code like "ORA-"
 function analyze_error_ORA() {
-	
+
 	# variable
 	f_target_data="$1"
-	
+
 	# --> computer variable
 	f_target_data_list=`analyze_block_str_to_line "$f_target_data"`
 	f_target_data_list_count=$(echo "$f_target_data_list" | wc -l)
@@ -96,10 +96,10 @@ function analyze_error_ORA() {
 	echo "***********************"
 	echo "Total count is: [$f_target_data_list_count]"
 	echo "-----------------------"
-	
+
 	# Put data into temp file
 	echo "$f_target_data_list" > $file_temp_block_data
-	
+
 	# ---> do while loop
 	#echo "$f_target_data_list" | while read item_target
 	while read item_target
@@ -110,12 +110,12 @@ function analyze_error_ORA() {
 		echo ""
 		# while variable
 		while_current_ora_code=`echo "$item_target" | cut -d' ' -f1 | cut -d':' -f1`
-		
+
 		echo "#--> while loop before is: $while_content_before"
 		echo "#--> while loop current is: $while_current_ora_code"
-		
+
 		echo ""
-		
+
 		if [[ "$error_list_ora_code" =~ "$while_current_ora_code" ]]
 		then
 			echo "### Error code is already in the List."
@@ -127,24 +127,24 @@ function analyze_error_ORA() {
 			#echo "### error list is:"
 			#echo "$error_list_ora_code"
 		fi
-		
+
 		# for test
-		#error_list_ora_code="1 2 3 4" # 为什么这里传参出去，出不去？
-		
+		#error_list_ora_code="1 2 3 4" # 涓轰粈涔堣繖閲屼紶鍙傚嚭鍘伙紝鍑轰笉鍘伙紵
+
 		# while end
 		while_content_before=$while_current_ora_code
 		let "while_cursor_1++"
 		echo ""
 	done < $file_temp_block_data
-	
+
 	# for test
-	#error_list_ora_code="1 2 3 4" # 在这里传参就没有问题
-	
+	#error_list_ora_code="1 2 3 4" # 鍦ㄨ繖閲屼紶鍙傚氨娌℃湁闂
+
 	#echo "### [out while] error list is:"
 	#echo "$error_list_ora_code"
-	
+
 	echo ""
-	
+
 }
 
 function show_list_error_ora_code() {
