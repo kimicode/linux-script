@@ -67,61 +67,57 @@ function analyze_error_ORA() {
   # variable
   f_target_data="$1"
 
+  # --> for loop
+  loop_count="1"
+  loop_content_before=""
+  list_error_code=""
+
   #IFS=' '
   f_target_data_list=`analyze_block_str_to_line "$f_target_data"`
 
-  f_ora_diff_list=""
-
-  f_cursor="1"
-  f_ora_loop_before=""
-
-  # logical 1
-  total_count=$(echo "$f_target_data" | wc -l)
+  echo "target list is"
+  echo "*****************************"
+  echo "$f_target_data"
+  echo "*****************************"
 
   echo ""
 
-  # display 1
-  echo "Total Line count is: [$total_count]"
-
-  echo ""
-
-  # logical 2
-  IFS='/n'
-  for error_item in $f_target_data_list
+  echo "$f_target_data" | while read error_item
   do
-    # loop begin
-    # logical
-    f_ora_loop_current=`echo "$error_item" | cut -d' ' -f1`
-
-    echo "############################"
-    echo "variable is [f_ora_loop_current]"
-    echo "$f_ora_loop_current"
-    echo "############################"
-
-    #if [[ "$f_ora_diff_list" =~ "$f_ora_loop_current" ]]
-    #then
-    #  echo "# distinct data already exist."
-    #else
-    #  f_ora_diff_list="$f_ora_diff_list "
-    #fi
-
-    # display
-    echo "============================="
-    echo "Count is: $f_cursor"
-    echo "Current error list is:"
-    echo "--> $f_ora_diff_list"
-
-    echo "Current error is:"
+    echo "------ $loop_count"
     echo "$error_item"
 
-    # loop end
-    let f_cursor=f_cursor+1
-    #f_ora_loop_before=$f_ora_loop_current
+    # variable
+    current_error=`echo "$error_item" | cut -d' ' -f1 | cut -d':' -f1`
+
     echo ""
 
+    echo "## current error is: $current_error"
+
+    echo ""
+
+    if [[ "$list_error_code" =~ "$current_error" ]]
+    then
+      echo "Error already in list."
+    else
+      list_error_code="$list_error_code $current_error"
+    fi
+
+    echo ""
+
+    echo "## current list is:"
+    for list_item in $list_error_code
+    do
+      echo "--> $list_item"
+    done
+
+    # end loop
+    let loop_count=loop_count+1
+    loop_content_before=$current_error
+
+    echo ""
   done
 
-  # display 2
 
 }
 
