@@ -3,6 +3,8 @@
 # variable
 str_command_sql=""
 str_temp_output=""
+str_path_alert_log=""
+str_sid=""
 
 # function
 
@@ -76,6 +78,8 @@ function select_instance_basic_info(){
   do_oracle_sql "select instance_name,status from v\$instance;" "set linesize 500;" "set pagesize 400" "col instance_name for a10"
   do_oracle_sql "select name,database_role,open_mode,current_scn from v\$database;" "set linesize 400" "set pagesize 98"
 
+  str_sid=$(do_oracle_sql "select value from v\$parameter where name='instance_name';" "col value for a65" | tail -n 1)
+
   echo ""
 }
 
@@ -122,6 +126,17 @@ function select_dg_log_pinglv_month() {
 }
 function select_dg_log_pinglv_year() {
   do_oracle_sql "select to_char(first_time,'yyyy'),count(*) Count from v\$archived_log group by to_char(first_time,'yyyy');"
+}
+
+function select_alert_log() {
+  str_path_alert_dir=$(do_oracle_sql "select value from v\$parameter where name='background_dump_dest';" "col value for a65" | tail -n 1)
+  str_path_alert_log="$str_path_alert_dir/alert_$str_sid.log"
+  echo "--> Instance is:: $str_sid"
+  echo "# alert log dir is:: $str_path_alert_dir"
+  echo "# alert log is: $str_path_alert_log"
+
+  echo ""
+
 }
 
 # running
@@ -173,8 +188,9 @@ echo "By: year"
 select_dg_log_pinglv_year
 echo "------"
 
-
-# -->
+# --> Alert Log
+display_banner "Alert Log"
+select_alert_log
 
 # --> end
 say_hi_and_bye "End"
