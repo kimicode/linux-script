@@ -9,7 +9,9 @@ str_file_alert_log="/u01/app/oracle/diag/rdbms/enmy/enmy/trace/alert_enmy.log"
 #str_check_string="$2"
 str_check_string="^ORA-"
 
-str_data_check_string=
+str_data_check_string=""
+
+list_error_ora=""
 
 #compute
 
@@ -92,21 +94,24 @@ function analyze_error_ORA() {
 
     echo ""
 
+    echo "## loop content before is: $loop_content_before"
     echo "## current error is: $current_error"
 
     echo ""
 
-    if [[ "$list_error_code" =~ "$current_error" ]]
+    if [[ "$list_error_ora" =~ "$current_error" ]]
     then
       echo "Error already in list."
     else
-      list_error_code="$list_error_code $current_error"
+      list_error_ora="$list_error_ora $current_error"
     fi
 
     echo ""
 
+    #list_error_ora="$list_error_code"
+
     echo "## current list is:"
-    for list_item in $list_error_code
+    for list_item in $list_error_ora
     do
       echo "--> $list_item"
     done
@@ -118,7 +123,9 @@ function analyze_error_ORA() {
     echo ""
   done
 
-
+  echo "## loop content before is: $loop_content_before"
+  echo "## error list is:"
+  echo "$list_error_ora"
 }
 
 # running
@@ -137,6 +144,9 @@ echo "$str_data_check_string"
 # analyze data: error like ora-
 display_banner "Analyze: like ORA-"
 analyze_error_ORA "$str_data_check_string"
+
+echo "## out --> error list is:"
+echo "$list_error_ora"
 
 # end
 say_hi_and_bye "end"
