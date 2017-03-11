@@ -150,7 +150,10 @@ function analyze_error_ORA() {
 function show_list_error_ora_code() {
 	for list_item in $error_list_ora_code
 	do
-		echo "--> $list_item"
+    #variable
+    error_total_count=`cat $file_alert | grep --color $list_item | wc -l`
+    #logical
+		echo "--> $list_item , count is: [$error_total_count]"
 	done
 }
 
