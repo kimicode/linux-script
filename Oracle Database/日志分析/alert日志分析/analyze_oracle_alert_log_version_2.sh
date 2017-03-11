@@ -8,6 +8,7 @@ while_content_before=""
 
 # while list
 error_list_ora_code=""
+duplicate_list=""
 
 # --> about oracle
 file_alert="/u01/app/oracle/diag/rdbms/enmy/enmy/trace/alert_enmy.log"
@@ -15,7 +16,7 @@ string_find="^ORA-"
 
 # --> temporary used
 block_data=""
-file_temp_block_data="/tmp/block_data"
+file_temp_block_data="/home/oracle/block_data"
 
 # -->
 
@@ -105,25 +106,26 @@ function analyze_error_ORA() {
 	while read item_target
 	do
 		# while begin
-		echo "----------- $while_cursor_1"
-		echo "$item_target"
-		echo ""
+		#echo "----------- $while_cursor_1"
+		#echo "$item_target"
+		#echo ""
 		# while variable
 		while_current_ora_code=`echo "$item_target" | cut -d' ' -f1 | cut -d':' -f1`
 
-		echo "#--> while loop before is: $while_content_before"
-		echo "#--> while loop current is: $while_current_ora_code"
+		#echo "#--> while loop before is: $while_content_before"
+		#echo "#--> while loop current is: $while_current_ora_code"
 
-		echo ""
+		#echo ""
 
 		if [[ "$error_list_ora_code" =~ "$while_current_ora_code" ]]
 		then
-			echo "### Error code is already in the List."
+			#echo "### Error code is already in the List."
 			#echo "### error list is:"
 			#echo "$error_list_ora_code"
+      duplicate_list="$duplicate_list $while_current_ora_code"
 		else
 			error_list_ora_code="$error_list_ora_code $while_current_ora_code"
-			echo "### Error code is [not] in the List."
+			#echo "### Error code is [not] in the List."
 			#echo "### error list is:"
 			#echo "$error_list_ora_code"
 		fi
@@ -134,7 +136,7 @@ function analyze_error_ORA() {
 		# while end
 		while_content_before=$while_current_ora_code
 		let "while_cursor_1++"
-		echo ""
+		#echo ""
 	done < $file_temp_block_data
 
 	# for test
@@ -155,6 +157,7 @@ function show_list_error_ora_code() {
     #logical
 		echo "--> $list_item , count is: [$error_total_count]"
 	done
+  echo ""
 }
 
 # -->
@@ -170,8 +173,8 @@ display_banner "Put data into variable."
 fill_data_in_variable
 
 # display the data
-display_banner "Display Variable [block_data] data"
-echo "$block_data"
+#display_banner "Display Variable [block_data] data"
+#echo "$block_data"
 
 # analyze data: error like ora-
 display_banner "Analyze: like ORA-"
