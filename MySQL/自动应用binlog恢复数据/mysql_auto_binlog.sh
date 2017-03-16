@@ -2,86 +2,295 @@
 # Language: Shell
 # Author: adamhuan
 
+# pre-check
+# 1. MySQL开binlog
+# 2. SSH互通（两两之间：1-2 / 2-3）
+# 3. 提前创建好需要的目录
+
 # begin
 
-ip_major=192.168.19.141
-ip_middle=192.168.19.142
-ip_apply=192.168.19.143
+mysql_ip_1=10.158.1.94
+mysql_ip_2=10.158.1.96
+mysql_ip_3=10.158.1.95
 
+# variable
+
+# ------------
+# changed: 2017年3月16日
+
+# 针对不同的节点主机的不同的认证信息
+
+# machine 1
+mysql_user_1='root'
+mysql_password_1="Abcd1@34"
+mysql_port_1="3306"
+file_mysql_cnf_1="/etc/my.cnf"
+
+# 这里的截取，需要登录到远端服务器操作，所以这里的赋值只是很初级的，后面还需要做很大的改动
+path_mysql_datadir_1=`cat $file_mysql_cnf_1 | grep --color datadir | cut -d'=' -f2`
+
+tmp_path_mysql_log_bin_1=`cat $file_mysql_cnf_1 | grep --color "log-bin" | cut -d'=' -f2`
+compute_path_mysql_binlog_dir_1=""
+
+# machine 2
+mysql_user_2='root'
+mysql_password_2="Abcd1@34"
+mysql_port_2="3306"
+file_mysql_cnf_2="/etc/my.cnf"
+
+# 这里的截取，需要登录到远端服务器操作，所以这里的赋值只是很初级的，后面还需要做很大的改动
+path_mysql_datadir_2=`cat $file_mysql_cnf_2 | grep --color datadir | cut -d'=' -f2`
+
+tmp_path_mysql_log_bin_2=`cat $file_mysql_cnf_2 | grep --color "log-bin" | cut -d'=' -f2`
+compute_path_mysql_binlog_dir_2=""
+
+# machine 3
+mysql_user_3='root'
+mysql_password_3="Abcd1@34"
+mysql_port_3="3306"
+file_mysql_cnf_3="/etc/my.cnf"
+
+# 这里的截取，需要登录到远端服务器操作，所以这里的赋值只是很初级的，后面还需要做很大的改动
+path_mysql_datadir_3=`cat $file_mysql_cnf_3 | grep --color datadir | cut -d'=' -f2`
+
+tmp_path_mysql_log_bin_3=`cat $file_mysql_cnf_3 | grep --color "log-bin" | cut -d'=' -f2`
+compute_path_mysql_binlog_dir_3=""
+
+# ------------
+
+# 脚本运行的时候会自行创建
 script_conf=mysql_auto_binlog.conf
+
+# scp file info，传输文件的时候需要的信息
+# 已经传送了的文件，默认会读取上面自动生成的参数文件
+scp_file_already_done=`cat $script_conf | grep --color scp_file_already_done | cut -d'=' -f2`
+
+# 接下来需要出传送的文件
+scp_file_need_to_do_min=""
+scp_file_need_to_do_max=""
+
+# 需要提前创建的目录
 temp_path_binlog=/mysql_data/binlog
 temp_path_binlog_sql=/mysql_data/input_text
 
-# variable
-mysql_user='root'
-mysql_password=Oracle1@34
-
-mysql_port="3306"
-
+# 存放，脚本抓取的当前的binlog的名字
 str_mysql_binlog=""
 
-file_mysql_cnf=/etc/my.cnf
+# 接下来需要出传送的文件列表
+scp_file_need_to_do_list=""
 
-path_mysql_datadir=`cat $file_mysql_cnf | grep --color datadir | cut -d'=' -f2`
+# ---------
+#需要传输的日志序列
 
-# scp file info
-scp_file_already_done=`cat $script_conf | grep --color scp_file_already_done | cut -d'=' -f2`
-scp_file_need_to_do=""
+# 当前的binlog的数字值
+int_current_binlog_number=""
 
-# function
+# 已经传过的binlog的数字的值
+int_alread_binlog_number=""
 
-function hello_world() {
-  #statements
-  echo "-------------------------"
-  echo "MySQL automatic Apply Binlog"
-  echo "MySQL：【自动】异机BINLOG同步"
-  echo "-------------------------"
-  echo "Begin:: "`date "+|%Y-%m-%d|%H:%M:%S|"`
-  echo "=========="
+# SCP 传输：源端
+#path_binlog_dir=""
+#string_search_binlog=""
+
+identified_binlog="mysql-bin"
+identified_binlog_dir="/var/lib/mysql"
+
+# ------------
+# Functions define area
+# ------------
+
+# 生成脚本开始于结束的时间戳信息
+function say_begin_end() {
+  # variable
+  func_str_sign="$1"
+
+  # logical
+  echo "==============================="
+  echo "$func_str_sign @ Time is: "`date "+|%Y-%m-%d|%H:%M:%S|"`
+  echo "==============================="
+
+  echo ""
+
 }
 
-function bye_world() {
-  #statements
-  echo "=========="
-  echo "End:: "`date "+|%Y-%m-%d|%H:%M:%S|"`
+# 不同的执行阶段的输出分割
+function show_banner() {
+  # variable
+  func_str_sign="$1"
+
+  # logical
+  echo "------------------"
+  echo "section @ name is: [$func_str_sign]"
+  echo "------------------"
+
+  echo ""
+
 }
 
+# 执行SQL命令
 function do_sql() {
   # variable
   func_str_ip="$1"
   func_str_sql="$2"
 
+  # ----------------------
+  # changed
+
+  func_str_user="$3"
+  func_str_password="$4"
+  func_str_port="$5"
+
+  # ----------------------
+
+  #echo "func_str_ip --> $func_str_ip"
+  #echo "func_str_sql --> $func_str_sql"
+  #echo "func_str_user --> $func_str_user"
+  #echo "func_str_password --> $func_str_password"
+  #echo "func_str_port --> $func_str_port"
+
+  echo
+
   # action
   # 本场景中不涉及到对MySQL某个库的操作，所以没有选择[db]
   # mysql -u $user -p"$password" $db -N -e "$f_sql_str"
-  mysql -u $mysql_user -h $func_str_ip -P$mysql_port -p"$mysql_password" -N -e "$func_str_sql"
+  mysql -h"$func_str_ip" -P$func_str_port -u "$func_str_user" -p"$func_str_password" -N -e "$func_str_sql"
 }
 
-function get_mysql_binlog_file() {
+# 对指定主机执行Linux命令
+# 前提：
+# 1. IP可达
+# 2. SSH等价关系
+function do_linux_by_ssh() {
   # variable
-  func_ip="$1"
+  func_str_ip="$1"
+  func_str_user="$2"
+  func_str_command="$3"
+
+  # action
+  ssh -t $func_str_user@$func_str_ip "$func_str_command"
+}
+
+# 获得binlog的当前信息
+# ---> 在本脚本中，当前的binlog信息，只需要采集【machine 1】
+function get_mysql_current_binlog_file() {
+  # variable
   func_str_binlog_file=""
 
   # action
-  func_str_binlog_file=`do_sql "$func_ip" "show master status" | awk '{print $1}'`
+  func_str_binlog_file=`do_sql "$mysql_ip_1" "show master status;" "$mysql_user_1" "$mysql_password_1" "$mysql_port_1" | awk '{print $1}'`
+
+  # fill value to variable
+  # 向当前的binlog的数字的参数中，填值
+  int_current_binlog_number=`echo "$func_str_binlog_file" | cut -d'.' -f2 | rev  | cut -d'0' -f1 | rev`
 
   # thrown out
   echo $func_str_binlog_file
 }
 
-function do_mysql_import_sql() {
+# 通用动态赋值（1）：与binlog有关的变量
+# 传递的参数是动态变量的动态部分：xx_1, xxx_2, xxx_3，类似这样的
+function dynamic_variable_binlog() {
   # variable
-  func_ip="$1"
-  func_str_sql_file="$2"
+  i=$1
 
-  # action
-  do_sql "$func_ip" "source $func_str_sql_file"
+  eval func_ip=$(eval echo "$"`eval echo $"mysql_ip_"$i`)
+  eval func_user=$(eval echo "$"`eval echo $"mysql_user_"$i`)
+
+  func_command_datadir="cat $"`eval echo "file_mysql_cnf_"$i`" | grep --color datadir | cut -d'=' -f2"
+  func_command_logbin_dir="cat $"`eval echo "file_mysql_cnf_"$i`" | grep --color log-bin | cut -d'=' -f2"
+
+  # display
+  echo "ip --> $func_ip"
+  echo "user --> $func_user"
+  echo "command [datadir] --> $func_command_datadir"
+  echo "command [log-bin] --> $func_command_logbin_dir"
+
+  # test
+  # 在远端机器上执行命令
+  #do_linux_by_ssh "$func_ip" "$func_user" "ifconfig" # 可行的
+  #do_linux_by_ssh "$func_ip" "$func_user" "cat $file_mysql_cnf_1 | grep --color log-bin | cut -d'=' -f2" # 可行的
+
+  #do_linux_by_ssh "$func_ip" "$func_user" "$func_command_datadir" # 这就有问题了？ 后面再写这一块的功能
+
+  # actural do this job
+  #echo "### Data dir is: ["`do_linux_by_ssh "$func_ip" "$func_user" "$func_command_datadir"`"]"
+  #echo "### Log Bin dir is: ["`do_linux_by_ssh "$func_ip" "$func_user" "$func_command_logbin_dir"`"]"
+
+  echo ""
 }
 
-# 对binlog字符串进行运算
-# $1 binlog字符串
-# $2 运算符
-# $3 运算量
+# 计算每个节点的logbin的路径
+# 这里的计算，跟上面的变量名息息相关，不要改变上面的相应变量名，否则，该函数策略失效
+# 这里的动态变量填充，需要登录到远端服务器操作，所以这里的赋值只是很初级的，后面还需要做很大的改动
+function feed_variable_binlog_dir() {
+  for i in `seq 1 3`
+  do
+    echo "@ seq [$i]"
+    dynamic_variable_binlog "$i"
+
+    echo ""
+  done
+
+  echo ""
+
+}
+
+# 通用静态赋值（1）：与binlog有关的变量
+function static_variable_binlog() {
+
+  # machine 1
+
+  path_mysql_datadir_1=`do_linux_by_ssh "$mysql_ip_1" "$mysql_user_1" "cat $file_mysql_cnf_1 | grep --color datadir | cut -d'=' -f2"`
+  tmp_path_mysql_log_bin_1=`do_linux_by_ssh "$mysql_ip_1" "$mysql_user_1" "cat $file_mysql_cnf_1 | grep --color log-bin | cut -d'=' -f2"`
+
+  compute_path_mysql_binlog_dir_1=""
+
+  # machine 2
+
+  path_mysql_datadir_2=`do_linux_by_ssh "$mysql_ip_2" "$mysql_user_2" "cat $file_mysql_cnf_2 | grep --color datadir | cut -d'=' -f2"`
+  tmp_path_mysql_log_bin_2=`do_linux_by_ssh "$mysql_ip_2" "$mysql_user_2" "cat $file_mysql_cnf_2 | grep --color log-bin | cut -d'=' -f2"`
+
+  compute_path_mysql_binlog_dir_2=""
+
+}
+
+function get_father_dir() {
+  # variable
+  func_target_str=$1
+
+  compute_last_file_str=`echo $func_target_str | rev | cut -d'/' -f1 | rev`
+  string_search_binlog="$compute_last_file_str"
+
+  # logical
+  echo "$func_target_str" | sed 's/$compute_last_file_str//g'
+
+}
+
+function fill_value_path_binlog_dir() {
+  # variable
+  func_temp_log_bin=$tmp_path_mysql_log_bin_1
+
+  # display
+  echo "[func_temp_log_bin] --> $func_temp_log_bin"
+
+  # logical
+  # 判断参数log-bin是否包含了【/】：
+  #如果没有包含，则binlog原始路劲与datadir一致
+  #否则，就要开始计算了
+  if [[ "$func_temp_log_bin" =~ "/" ]]
+  then
+    path_binlog_dir=`get_father_dir "$func_temp_log_bin"`
+  else
+    # 在当前环境中，不需要考虑额外的情况，源端计算，都是【machine 1】
+    path_binlog_dir=$path_mysql_datadir_1
+    string_search_binlog="$tmp_path_mysql_log_bin_1"
+  fi
+}
+
+# 通过计算生成目标binlog文件的名字
+# 当前的实现是有缺陷的：
+# 默认的binlog的数字区，6位；但是在我的这个方法里面，如果计算出来的数字，原先是1位，后来变成了2位，则会让binlog数字区整体的从6位变成7位
+# 这不符合binlog文件的真实情况
 function compute_mysql_binlog_file() {
   # variable
   f_str_binlog="$1"
@@ -113,122 +322,121 @@ function compute_mysql_binlog_file() {
   echo $f_str_binlog_after
 }
 
-# 对指定主机执行Linux命令
-# 前提：
-# 1. IP可达
-# 2. SSH等价关系
-function do_linux_by_ssh() {
+function search_mysql_binlog_file() {
+    # variable
+    func_binlog_search_number="$1"
+    func_binlog_dir="$path_binlog_dir"
+    func_binlog_search_string="$string_search_binlog"
+
+    #echo "[func_binlog_search_number] --> $func_binlog_search_number"
+    #echo "[func_binlog_dir] --> $func_binlog_dir"
+    #echo "[func_binlog_search_string] --> $func_binlog_search_string"
+    #echo "[string_search_binlog] --> $string_search_binlog"
+
+    # logical
+    temp_list=`ls -tr $identified_binlog_dir | grep "$identified_binlog"` #可行的
+    #temp_list=`ls -tr $func_binlog_dir | grep "$func_binlog_search_string"` #可行的
+
+    for item_binlog in $temp_list
+    do
+      #echo "-------- current: $item_binlog"
+
+      func_temp_number=`echo $item_binlog | cut -d'.' -f2`
+
+      func_temp_file_search_count=""
+
+      func_temp_file_source_count=`echo ${#func_temp_number}`
+      func_temp_file_search_count=`echo ${#func_binlog_search_number}`
+
+            #echo "[func_temp_file_source_count] --> $func_temp_file_source_count"
+            #echo "[func_temp_file_search_count] --> $func_temp_file_search_count"
+
+            if [ $func_temp_file_source_count -gt $func_temp_file_search_count ]
+            then
+              let func_minus=func_temp_file_source_count-func_temp_file_search_count
+
+              for z_c in `seq 1 $func_minus`
+              do
+                func_binlog_search_number="0"$func_binlog_search_number
+              done
+            fi
+
+            result=`echo $item_binlog | grep $func_binlog_search_number`
+
+            if [ "$result" != "" ]
+            then
+              echo $item_binlog
+              break
+            fi
+    done
+}
+
+# 在当前的脚本环境中，运行应用binlog生成的sql函数的只可能是【machine 3】
+function do_mysql_import_sql() {
   # variable
-  func_str_ip="$1"
-  func_str_user="$2"
-  func_str_command="$3"
+  # version 1
+  #func_ip="$1"
+  #func_str_sql_file="$2"
+
+  # version 2
+  func_str_sql_file="$1"
 
   # action
-  ssh -t $func_str_user@$func_str_ip "$func_str_command"
+  do_sql "$mysql_ip_3" "source $func_str_sql_file" "$mysql_user_3" "$mysql_password_3" "$mysql_port_3"
 }
 
-function fill_value_to_need_scp() {
-  if [ "$scp_file_need_to_do" == "" ]
-    then
-      str_mysql_binlog=`get_mysql_binlog_file $ip_major`
-      scp_file_need_to_do=`compute_mysql_binlog_file "$str_mysql_binlog" "-" "1"`
-  fi
-}
+# 前面的准备都写完了，接下来，开始设计，队列机制：2017年3月17日01:40:36
 
-function do_scp() {
-  #statements
-  ip_from=$1
-  ip_to=$2
+# ------------
+# running area
+# ------------
 
-  dir_to=$3
+# begin
+say_begin_end "begin"
 
-  #action
-  fill_value_to_need_scp
+# FUNCTION: do_sql --> test
+show_banner "FUNC: do_sql --> test"
 
-  f_full_path_scp_file="$path_mysql_datadir/$scp_file_need_to_do"
+#echo ""
+#do_sql "$mysql_ip_1" "show master status;" "$mysql_user_1" "$mysql_password_1" "$mysql_port_1"
+#do_sql "$mysql_ip_2" "show master status;" "$mysql_user_2" "$mysql_password_2" "$mysql_port_2"
+#do_sql "$mysql_ip_3" "show master status;" "$mysql_user_3" "$mysql_password_3" "$mysql_port_3"
 
-  scp -r "$f_full_path_scp_file" $ip_to:$dir_to
+# FUNCTION: get_mysql_current_binlog_file --> test
+show_banner "FUNC: get_mysql_current_binlog_file --> test"
+str_mysql_binlog=`get_mysql_current_binlog_file`
+echo "variable: [str_mysql_binlog] is: $str_mysql_binlog"
+echo "variable: [int_current_binlog_number] is: $int_current_binlog_number"
 
-  scp_file_already_done=$scp_file_need_to_do
-  echo "scp_file_already_done=$scp_file_already_done" > $script_conf
-}
+# FUNCTION: feed_variable_binlog_dir --> test
+#show_banner "FUNC: feed_variable_binlog_dir --> test"
+#feed_variable_binlog_dir
+#echo "variable [tmp_path_mysql_log_bin_1] is --> $tmp_path_mysql_log_bin_1"
+#echo "variable [tmp_path_mysql_log_bin_2] is --> $tmp_path_mysql_log_bin_2"
+#echo "variable [tmp_path_mysql_log_bin_3] is --> $tmp_path_mysql_log_bin_3"
 
-function transfer_apply_mysql_binlog() {
-  # variable
-  f_binlog_file_name_full=$temp_path_binlog/$1
-  f_binlog_file_sql_full=$temp_path_binlog_sql/$1.sql
+# FUNCTION: static_variable_binlog --> test
+show_banner "FUNC: static_variable_binlog --> test"
+static_variable_binlog
+echo "variable [tmp_path_mysql_log_bin_1] is --> $tmp_path_mysql_log_bin_1"
+echo "variable [tmp_path_mysql_log_bin_2] is --> $tmp_path_mysql_log_bin_2"
 
-  # action
-  do_linux_by_ssh $ip_middle root "mysqlbinlog $f_binlog_file_name_full > $f_binlog_file_sql_full"
+# FUNCTION: fill_value_path_binlog_dir --> test
+show_banner "FUNC: fill_value_path_binlog_dir --> test"
+fill_value_path_binlog_dir
+echo "variable [path_binlog_dir] is --> $path_binlog_dir"
 
-  echo "Function:: Import data into MySQL"
-  echo "Command is:: "
-  echo "mysql -u$mysql_user -h $ip_apply -p'$mysql_password' < $f_binlog_file_sql_full"
-  do_linux_by_ssh $ip_middle root "mysql -u$mysql_user -h $ip_apply -p'$mysql_password' < $f_binlog_file_sql_full"
-}
+# FUNCTION: compute_mysql_binlog_file --> test
+show_banner "FUNC: compute_mysql_binlog_file --> test"
+compute_mysql_binlog_file "$str_mysql_binlog" "-" "1"
+compute_mysql_binlog_file "$str_mysql_binlog" "+" "13"
 
-# call_scp
-# if run this script?
-function call_scp() {
-  #statements
-  if [ "$scp_file_need_to_do" == "" ]
-  then
-    fill_value_to_need_scp
-    echo "Function SCP need:: $scp_file_need_to_do"
-  fi
+# FUNCTION: search_mysql_binlog_file --> test
+show_banner "FUNC: search_mysql_binlog_file --> test"
+search_mysql_binlog_file "4"
 
-  echo "SCP need:: $scp_file_need_to_do"
-  echo "SCP already:: $scp_file_already_done"
+# end
+say_begin_end "end"
 
-  if [ "$scp_file_need_to_do" == "$scp_file_already_done" ]
-  then
-    echo "No need call function:: do_scp"
-  else
-    do_scp $ip_major $ip_middle "$temp_path_binlog"
-    transfer_apply_mysql_binlog $scp_file_need_to_do
-  fi
-}
-
-# running
-
-# 开始
-hello_world
-
-# GET: binlog info
-#echo "MySQL binlog info:"
-#echo "###############################################"
-#echo "$ip_major:: "
-#do_sql $ip_major "show master status;"
-#str_mysql_binlog=`get_mysql_binlog_file $ip_major`
-
-#echo "-1:: "
-#compute_mysql_binlog_file "$str_mysql_binlog" "-" "1"
-
-#echo "###############################################"
-#echo "$ip_middle:: "
-#do_sql $ip_middle "show master status;"
-#str_mysql_binlog=`get_mysql_binlog_file $ip_middle`
-
-#echo "-1:: "
-#compute_mysql_binlog_file "$str_mysql_binlog" "-" "1"
-
-#echo "###############################################"
-#echo "$ip_apply:: "
-#do_sql $ip_apply "show master status;"
-#str_mysql_binlog=`get_mysql_binlog_file $ip_apply`
-
-#echo "-1:: "
-#compute_mysql_binlog_file "$str_mysql_binlog" "-" "1"
-
-#echo "###############################################"
-
-# call scp
-# running this script??
-call_scp
-
-# 结束
-bye_world
-
-# dispaly
-
+# ------------
 # finished
