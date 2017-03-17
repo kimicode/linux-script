@@ -22,7 +22,10 @@ mysql_ip_3=10.158.1.95
 
 # machine 1
 mysql_user_1='root'
+
 mysql_password_1="Abcd1@34"
+#mysql_password_1="Abcd!234"
+
 mysql_port_1="3306"
 file_mysql_cnf_1="/etc/my.cnf"
 
@@ -463,7 +466,25 @@ function fill_value_script_conf() {
     #logical
     func_parameter_value_old=`get_script_conf_value "$func_parameter_name"`
 
-    sed -i '/$func_parameter_name/s/$func_parameter_value_old/$func_parameter_value/g' $script_conf
+    echo "OLD value is: [$func_parameter_value_old]"
+    echo "NEW value is: [$func_parameter_value]"
+
+    # display the file content
+    echo "-----------------"
+    echo "[before] conf file content is:"
+    cat $script_conf
+    echo "-----------------"
+    echo ""
+
+    #sed -i /'$func_parameter_name'/s/'$func_parameter_value_old'/'$func_parameter_value'/g $script_conf
+    sed -i "s/$func_parameter_name=$func_parameter_value_old/$func_parameter_name=$func_parameter_value/" $script_conf
+
+    echo "-----------------"
+    echo "[after] conf file content is:"
+    cat $script_conf
+    echo "-----------------"
+    echo ""
+
   fi
 
 }
@@ -519,7 +540,7 @@ function fill_value_scp_variable() {
 function list_do_scp() {
   # variable
   #scp_file_need_to_do_min=`let parameter_scp_already_num+1` #循环的开始点
-  scp_file_need_to_do_min=$(($int_alread_binlog_number+1)) #循环的开始点
+  scp_file_need_to_do_min=$(($parameter_scp_already_num+1)) #循环的开始点
 
   func_scp_file_name=""
 
