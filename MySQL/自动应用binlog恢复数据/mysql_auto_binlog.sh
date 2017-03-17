@@ -60,7 +60,7 @@ compute_path_mysql_binlog_dir_3=""
 scp_file_need_to_do_min=""
 scp_file_need_to_do_max=""
 
-# 需要提前创建的目录
+# 需要提前创建的目录，中间服务器需要的路径
 temp_path_binlog=/mysql_data/binlog
 temp_path_binlog_sql=/mysql_data/input_text
 
@@ -97,6 +97,17 @@ script_conf=mysql_auto_binlog.conf
 # 已经传送了的文件，默认会读取上面自动生成的参数文件
 #--> version 1: 在之前的版本中，我只设定了一个，但是在最新版里，我需要的是一个队列
 #scp_file_already_done=`cat $script_conf | grep --color scp_file_already_done | cut -d'=' -f2`
+
+#--> version 2
+parameter_scp_already_num=""
+parameter_scp_current_num=""
+
+# ---------
+# 传输操作
+# ---------
+
+#该目录需要，提前创建
+scp_local_path="/backup_me/binlog"
 
 # ------------
 # Functions define area
@@ -184,10 +195,22 @@ function get_mysql_current_binlog_file() {
 
   # fill value to variable
   # 向当前的binlog的数字的参数中，填值
-  int_current_binlog_number=`echo "$func_str_binlog_file" | cut -d'.' -f2 | rev  | cut -d'0' -f1 | rev`
+  #int_current_binlog_number=`echo "$func_str_binlog_file" | cut -d'.' -f2 | rev  | cut -d'0' -f1 | rev`
+
+  #echo "variable: [func_str_binlog_file] is: $func_str_binlog_file"
+  #echo "variable: [int_current_binlog_number] is: $int_current_binlog_number"
 
   # thrown out
   echo $func_str_binlog_file
+}
+
+# 获得当前BINLOG的数字信息
+function get_mysql_current_binlog_file_number() {
+  # logical
+  func_result=`echo $str_mysql_binlog | cut -d'.' -f2 | rev  | cut -d'0' -f1 | rev`
+
+  # throw out
+  echo $func_result
 }
 
 # 通用动态赋值（1）：与binlog有关的变量
@@ -478,6 +501,105 @@ function check_script_conf_is_alive() {
   echo ""
 }
 
+# 从配置文件中读取值，并填充变量
+# 主要依赖上面设定的变量：
+#parameter_scp_already_num=""
+#parameter_scp_current_num=""
+
+function fill_value_scp_variable() {
+  # logical
+  parameter_scp_already_num=`get_script_conf_value "scp_already_num"`
+  parameter_scp_current_num=`get_script_conf_value "scp_current_num"` #在后面，增加判断进程是否已经在跑，然后再启用该参数
+}
+
+# 然后，可以根据上面所设定的值，制造队列了
+# 在这个循环序列中，可以通过【while】来操作，而不是for，因为可以更灵活
+# 在SCP的时候，需要在本地也转储一次，转储位置【scp_local_path】
+
+function list_do_scp() {
+  # variable
+  #scp_file_need_to_do_min=`let parameter_scp_already_num+1` #循环的开始点
+  scp_file_need_to_do_min=$(($a+1)) #循环的开始点
+
+  func_scp_file_name=""
+
+  # version 1
+  #scp_file_need_to_do_max=`let int_current_binlog_number-1` #循环的结束点
+  scp_file_need_to_do_max="$int_current_binlog_number" #循环的结束点
+
+  echo "[parameter_scp_already_num] --> $parameter_scp_already_num"
+  echo "[int_current_binlog_number] --> $int_current_binlog_number"
+  echo "--------------"
+  echo "[scp_file_need_to_do_min] --> $scp_file_need_to_do_min"
+  echo "[scp_file_need_to_do_max] --> $scp_file_need_to_do_max"
+
+  echo ""
+
+  while [ $scp_file_need_to_do_min -lt $scp_file_need_to_do_max ]
+  do
+    echo "--------- current: $scp_file_need_to_do_min"
+    fill_value_script_conf "scp_current_num" "$scp_file_need_to_do_min"
+
+    # variable
+    # version 1
+    #func_scp_file_name=`search_mysql_binlog_file "$scp_file_need_to_do_min"`
+    #temp_full=$path_binlog_dir/$func_scp_file_name
+
+    #echo "[path_binlog_dir] --> $path_binlog_dir"
+    #echo "[func_scp_file_name] --> $func_scp_file_name"
+
+    #echo "[full] --> $path_binlog_dir/$func_scp_file_name"
+    #echo "full direct path: $func_scp_file_name_full"
+
+    # version 2
+    temp_file_1=`search_mysql_binlog_file "$scp_file_need_to_do_min"`
+
+    #temp_dir="$path_binlog_dir" # 这里用变量有问题，但是直接赋值却没问题？ 也许是上面rev翻转的问题？
+    temp_dir="/var/lib/mysql" # 这样就没问题？
+
+    temp_full="$temp_dir/$temp_file_1"
+
+    temp_remote_binlog_dir="/mysql_data/binlog"
+    temp_remote_sql_dir="/mysql_data/input_text"
+
+    # test
+    #echo "[temp_full] = $temp_full" # 这里输出的内容完全不一样
+    echo "## dir: $temp_dir"
+    echo "## local dir: $scp_local_path"
+    echo "## file: $temp_file_1"
+    echo "## remote binlog dir: $temp_remote_binlog_dir"
+    echo "## remote sql dir: $temp_remote_sql_dir"
+    echo "full path:"
+    echo "$temp_full" # 为什么拿不到值？
+
+    echo "Do CP"
+    #result_local_cp=`do_linux_by_ssh "$mysql_ip_1" "root" "cd $temp_dir;cp $temp_file_1 $scp_local_path"`
+    #result_local_cp=`cd " $temp_dir" && cp -rf "$temp_file_1" "$scp_local_path"`
+    result_local_cp=`cp -rf "$temp_full" "$scp_local_path"`
+
+
+    echo "Do SCP"
+    #指定了SCP的端口
+    #依赖参数：
+    #temp_path_binlog=/mysql_data/binlog
+    #temp_path_binlog_sql=/mysql_data/input_text
+    #需要先创建好：mkdir /mysql_data/{binlog,input_text} -p
+    #result_do_scp=`scp -P22022 -r "$temp_full" $mysql_ip_2:$temp_path_binlog`
+    result_do_scp=`scp -r "$temp_full" $mysql_ip_2:/mysql_data/binlog`
+
+    echo "Trancelate BINLOG --> SQL"
+    do_linux_by_ssh "$mysql_ip_2" "root" "mysqlbinlog $temp_remote_binlog_dir/$temp_file_1 > $temp_remote_sql_dir/$temp_file_1.sql"
+
+    echo "Do import SQL"
+    do_linux_by_ssh "$mysql_ip_2" "root" "mysql -h"$mysql_ip_3" -P$mysql_port_3 -u "$mysql_user_3" -p"$mysql_password_3" < $temp_remote_sql_dir/$temp_file_1.sql"
+
+    echo ""
+    # incease
+    let "scp_file_need_to_do_min++"
+  done
+  echo ""
+}
+
 # ------------
 # running area
 # ------------
@@ -499,6 +621,13 @@ check_script_conf_is_alive
 show_banner "FUNC: check_script_conf_init --> test"
 check_script_conf_init
 
+# 向变量中填值
+# FUNCTION: fill_value_scp_variable --> test
+show_banner "FUNC: fill_value_scp_variable --> test"
+fill_value_scp_variable
+echo "[parameter_scp_already_num] is --> $parameter_scp_already_num"
+echo "[parameter_scp_current_num] is --> $parameter_scp_current_num"
+
 # FUNCTION: do_sql --> test
 show_banner "FUNC: do_sql --> test"
 
@@ -510,6 +639,7 @@ show_banner "FUNC: do_sql --> test"
 # FUNCTION: get_mysql_current_binlog_file --> test
 show_banner "FUNC: get_mysql_current_binlog_file --> test"
 str_mysql_binlog=`get_mysql_current_binlog_file`
+int_current_binlog_number=`get_mysql_current_binlog_file_number`
 echo "variable: [str_mysql_binlog] is: $str_mysql_binlog"
 echo "variable: [int_current_binlog_number] is: $int_current_binlog_number"
 
@@ -539,6 +669,13 @@ compute_mysql_binlog_file "$str_mysql_binlog" "+" "13"
 # FUNCTION: search_mysql_binlog_file --> test
 show_banner "FUNC: search_mysql_binlog_file --> test"
 search_mysql_binlog_file "4"
+
+#基础信息都拿到了
+
+# 开始传递BINLOG，从第一台机器到第二台
+# FUNCTION: list_do_scp --> test
+show_banner "FUNC: list_do_scp --> test"
+list_do_scp
 
 # end
 say_begin_end "end"
