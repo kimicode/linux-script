@@ -593,11 +593,27 @@ function list_do_scp() {
     echo "Do import SQL"
     do_linux_by_ssh "$mysql_ip_2" "root" "mysql -h"$mysql_ip_3" -P$mysql_port_3 -u "$mysql_user_3" -p"$mysql_password_3" < $temp_remote_sql_dir/$temp_file_1.sql"
 
+    #应用完成，将当前的写入配置文件
+    fill_value_script_conf "scp_already_num" "$scp_file_need_to_do_min"
+
     echo ""
     # incease
     let "scp_file_need_to_do_min++"
   done
   echo ""
+}
+
+# call_scp
+# if run this script?
+function call_scp() {
+  # variable
+  int_current_purpose=$(($int_current_binlog_number-1))
+
+  #statements
+  if [ "$int_current_purpose" == "$int_alread_binlog_number" ]
+  then
+    echo "No need call function:: do_scp"
+  fi
 }
 
 # ------------
@@ -618,8 +634,10 @@ check_script_conf_is_alive
 
 # 在上面创建了配置文件后，开始向其中灌值
 # FUNCTION: check_script_conf_init --> test
-show_banner "FUNC: check_script_conf_init --> test"
-check_script_conf_init
+#show_banner "FUNC: check_script_conf_init --> test"
+#check_script_conf_init
+
+call_scp
 
 # 向变量中填值
 # FUNCTION: fill_value_scp_variable --> test
