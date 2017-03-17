@@ -456,25 +456,25 @@ function fill_value_script_conf() {
   # logical
   if [ "$func_parameter_temp_1" == "" ]
   then
-    echo "CONF File [$script_conf] - parameter [$func_parameter_name] --> [is not] exist."
-    echo "CONF File [$script_conf] - parameter [$func_parameter_name] --> append it."
+    #echo "CONF File [$script_conf] - parameter [$func_parameter_name] --> [is not] exist."
+    #echo "CONF File [$script_conf] - parameter [$func_parameter_name] --> append it."
     echo "$func_parameter_name=$func_parameter_value" >> $script_conf
   else
-    echo "CONF File [$script_conf] - parameter [$func_parameter_name] --> [is exist]."
-    echo "CONF File [$script_conf] - parameter [$func_parameter_name] --> [modify VALUE]."
+    #echo "CONF File [$script_conf] - parameter [$func_parameter_name] --> [is exist]."
+    #echo "CONF File [$script_conf] - parameter [$func_parameter_name] --> [modify VALUE]."
 
     #logical
     func_parameter_value_old=`get_script_conf_value "$func_parameter_name"`
 
-    echo "OLD value is: [$func_parameter_value_old]"
-    echo "NEW value is: [$func_parameter_value]"
+    #echo "OLD value is: [$func_parameter_value_old]"
+    #echo "NEW value is: [$func_parameter_value]"
 
     # display the file content
-    echo "-----------------"
-    echo "[before] conf file content is:"
-    cat $script_conf
-    echo "-----------------"
-    echo ""
+    #echo "-----------------"
+    #echo "[before] conf file content is:"
+    #cat $script_conf
+    #echo "-----------------"
+    #echo ""
 
     #sed -i /'$func_parameter_name'/s/'$func_parameter_value_old'/'$func_parameter_value'/g $script_conf
     sed -i "s/$func_parameter_name=$func_parameter_value_old/$func_parameter_name=$func_parameter_value/" $script_conf
@@ -548,11 +548,11 @@ function list_do_scp() {
   #scp_file_need_to_do_max=`let int_current_binlog_number-1` #循环的结束点
   scp_file_need_to_do_max="$int_current_binlog_number" #循环的结束点
 
-  echo "[parameter_scp_already_num] --> $parameter_scp_already_num"
-  echo "[int_current_binlog_number] --> $int_current_binlog_number"
-  echo "--------------"
-  echo "[scp_file_need_to_do_min] --> $scp_file_need_to_do_min"
-  echo "[scp_file_need_to_do_max] --> $scp_file_need_to_do_max"
+  #echo "[parameter_scp_already_num] --> $parameter_scp_already_num"
+  #echo "[int_current_binlog_number] --> $int_current_binlog_number"
+  #echo "--------------"
+  #echo "[scp_file_need_to_do_min] --> $scp_file_need_to_do_min"
+  #echo "[scp_file_need_to_do_max] --> $scp_file_need_to_do_max"
 
   echo ""
 
@@ -585,13 +585,13 @@ function list_do_scp() {
 
     # test
     #echo "[temp_full] = $temp_full" # 这里输出的内容完全不一样
-    echo "## dir: $temp_dir"
-    echo "## local dir: $scp_local_path"
-    echo "## file: $temp_file_1"
-    echo "## remote binlog dir: $temp_remote_binlog_dir"
-    echo "## remote sql dir: $temp_remote_sql_dir"
-    echo "full path:"
-    echo "$temp_full" # 为什么拿不到值？
+    #echo "## dir: $temp_dir"
+    #echo "## local dir: $scp_local_path"
+    #echo "## file: $temp_file_1"
+    #echo "## remote binlog dir: $temp_remote_binlog_dir"
+    #echo "## remote sql dir: $temp_remote_sql_dir"
+
+    echo "full path: $temp_full" # 为什么拿不到值？
 
     echo "Do CP"
     #result_local_cp=`do_linux_by_ssh "$mysql_ip_1" "root" "cd $temp_dir;cp $temp_file_1 $scp_local_path"`
@@ -630,10 +630,16 @@ function call_scp() {
   # variable
   int_current_purpose=$(($int_current_binlog_number-1))
 
+  echo "-----------------------------------"
+  echo "int_alread_binlog_number --> $parameter_scp_already_num"
+  echo "int_current_purpose --> $int_current_purpose"
+
   #statements
-  if [ "$int_current_purpose" == "$int_alread_binlog_number" ]
+  if [ "$int_current_purpose" == "$parameter_scp_already_num" ]
   then
     echo "No need call function:: do_scp"
+
+    echo ""
   fi
 }
 
@@ -658,8 +664,6 @@ check_script_conf_is_alive
 #show_banner "FUNC: check_script_conf_init --> test"
 #check_script_conf_init
 
-call_scp
-
 # 向变量中填值
 # FUNCTION: fill_value_scp_variable --> test
 show_banner "FUNC: fill_value_scp_variable --> test"
@@ -668,7 +672,7 @@ echo "[parameter_scp_already_num] is --> $parameter_scp_already_num"
 echo "[parameter_scp_current_num] is --> $parameter_scp_current_num"
 
 # FUNCTION: do_sql --> test
-show_banner "FUNC: do_sql --> test"
+#show_banner "FUNC: do_sql --> test"
 
 #echo ""
 #do_sql "$mysql_ip_1" "show master status;" "$mysql_user_1" "$mysql_password_1" "$mysql_port_1"
@@ -682,6 +686,11 @@ int_current_binlog_number=`get_mysql_current_binlog_file_number`
 echo "variable: [str_mysql_binlog] is: $str_mysql_binlog"
 echo "variable: [int_current_binlog_number] is: $int_current_binlog_number"
 
+# FUNCTION: call_scp --> test
+show_banner "FUNC: call_scp --> test"
+call_scp
+
+
 # FUNCTION: feed_variable_binlog_dir --> test
 #show_banner "FUNC: feed_variable_binlog_dir --> test"
 #feed_variable_binlog_dir
@@ -690,24 +699,24 @@ echo "variable: [int_current_binlog_number] is: $int_current_binlog_number"
 #echo "variable [tmp_path_mysql_log_bin_3] is --> $tmp_path_mysql_log_bin_3"
 
 # FUNCTION: static_variable_binlog --> test
-show_banner "FUNC: static_variable_binlog --> test"
-static_variable_binlog
-echo "variable [tmp_path_mysql_log_bin_1] is --> $tmp_path_mysql_log_bin_1"
-echo "variable [tmp_path_mysql_log_bin_2] is --> $tmp_path_mysql_log_bin_2"
+#show_banner "FUNC: static_variable_binlog --> test"
+#static_variable_binlog
+#echo "variable [tmp_path_mysql_log_bin_1] is --> $tmp_path_mysql_log_bin_1"
+#echo "variable [tmp_path_mysql_log_bin_2] is --> $tmp_path_mysql_log_bin_2"
 
 # FUNCTION: fill_value_path_binlog_dir --> test
-show_banner "FUNC: fill_value_path_binlog_dir --> test"
-fill_value_path_binlog_dir
-echo "variable [path_binlog_dir] is --> $path_binlog_dir"
+#show_banner "FUNC: fill_value_path_binlog_dir --> test"
+#fill_value_path_binlog_dir
+#echo "variable [path_binlog_dir] is --> $path_binlog_dir"
 
 # FUNCTION: compute_mysql_binlog_file --> test
-show_banner "FUNC: compute_mysql_binlog_file --> test"
-compute_mysql_binlog_file "$str_mysql_binlog" "-" "1"
-compute_mysql_binlog_file "$str_mysql_binlog" "+" "13"
+#show_banner "FUNC: compute_mysql_binlog_file --> test"
+#compute_mysql_binlog_file "$str_mysql_binlog" "-" "1"
+#compute_mysql_binlog_file "$str_mysql_binlog" "+" "13"
 
 # FUNCTION: search_mysql_binlog_file --> test
-show_banner "FUNC: search_mysql_binlog_file --> test"
-search_mysql_binlog_file "4"
+#show_banner "FUNC: search_mysql_binlog_file --> test"
+#search_mysql_binlog_file "4"
 
 #基础信息都拿到了
 
