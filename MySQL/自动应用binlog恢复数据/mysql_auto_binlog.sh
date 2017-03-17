@@ -519,7 +519,7 @@ function fill_value_scp_variable() {
 function list_do_scp() {
   # variable
   #scp_file_need_to_do_min=`let parameter_scp_already_num+1` #循环的开始点
-  scp_file_need_to_do_min=$(($a+1)) #循环的开始点
+  scp_file_need_to_do_min=$(($int_alread_binlog_number+1)) #循环的开始点
 
   func_scp_file_name=""
 
