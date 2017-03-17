@@ -56,15 +56,6 @@ path_mysql_datadir_3=`cat $file_mysql_cnf_3 | grep --color datadir | cut -d'=' -
 tmp_path_mysql_log_bin_3=`cat $file_mysql_cnf_3 | grep --color "log-bin" | cut -d'=' -f2`
 compute_path_mysql_binlog_dir_3=""
 
-# ------------
-
-# 脚本运行的时候会自行创建
-script_conf=mysql_auto_binlog.conf
-
-# scp file info，传输文件的时候需要的信息
-# 已经传送了的文件，默认会读取上面自动生成的参数文件
-scp_file_already_done=`cat $script_conf | grep --color scp_file_already_done | cut -d'=' -f2`
-
 # 接下来需要出传送的文件
 scp_file_need_to_do_min=""
 scp_file_need_to_do_max=""
@@ -94,6 +85,18 @@ int_alread_binlog_number=""
 
 identified_binlog="mysql-bin"
 identified_binlog_dir="/var/lib/mysql"
+
+# ---------
+#与脚本级配置文件有关的变量
+# ------------
+
+# 脚本运行的时候会自行创建
+script_conf=mysql_auto_binlog.conf
+
+# scp file info，传输文件的时候需要的信息
+# 已经传送了的文件，默认会读取上面自动生成的参数文件
+#--> version 1: 在之前的版本中，我只设定了一个，但是在最新版里，我需要的是一个队列
+#scp_file_already_done=`cat $script_conf | grep --color scp_file_already_done | cut -d'=' -f2`
 
 # ------------
 # Functions define area
@@ -379,6 +382,7 @@ function do_mysql_import_sql() {
   #func_str_sql_file="$2"
 
   # version 2
+  # 使用该方法的时候，只需要传递需要应用的SQL文件的名称即可（可以参与循环事件）
   func_str_sql_file="$1"
 
   # action
@@ -387,12 +391,113 @@ function do_mysql_import_sql() {
 
 # 前面的准备都写完了，接下来，开始设计，队列机制：2017年3月17日01:40:36
 
+#==============================
+# 队列化的前提是，需要配置文件
+#==============================
+
+# 对于配置文件，还需要可以根据参数名称，定向取值与改值的脚本，以方便后续的调用与整体代码的利用率的升级
+# 在我写的方法中：
+# 1. 有的是有具体的职能的，不需要对外输出
+# 2. 有的是需要对外交付的
+#     这里也有两种情况：有的需要格式化输出；而另一些，只需要定向抛出变量即可
+# 而当前的获得值的脚本，需要对外交付
+function get_script_conf_value() {
+  # variable
+  func_parameter="$1"
+  func_result=`cat $script_conf | grep "$func_parameter" | cut -d'=' -f2`
+
+  # throw out
+  echo "$func_result"
+}
+
+# 向文件中写值，如果值不存在就追加，如果值存在，就替换
+# 默认参数，为配置文件名称，依赖上述写的文件位置的变量【script_conf】
+function fill_value_script_conf() {
+  # variable
+  # 需要修改的值的参数
+  func_parameter_name="$1"
+
+  # 需要修改的值
+  func_parameter_value="$2"
+
+  # 用于后续替换判断
+  func_parameter_value_old=""
+
+  # variable --> 第一次处理：compute 1
+  # 改参数也可以用作：判定参数是否存在，如果拿到了值，则存在，否则不存在，拿到的值可以直接做后续判定
+  func_parameter_temp_1=`cat $script_conf | grep "$func_parameter_name"`
+
+  # logical
+  if [ "$func_parameter_temp_1" == "" ]
+  then
+    echo "CONF File [$script_conf] - parameter [$func_parameter_name] --> [is not] exist."
+    echo "CONF File [$script_conf] - parameter [$func_parameter_name] --> append it."
+    echo "$func_parameter_name=$func_parameter_value" >> $script_conf
+  else
+    echo "CONF File [$script_conf] - parameter [$func_parameter_name] --> [is exist]."
+    echo "CONF File [$script_conf] - parameter [$func_parameter_name] --> [modify VALUE]."
+
+    #logical
+    func_parameter_value_old=`get_script_conf_value "$func_parameter_name"`
+
+    sed -i '/$func_parameter_name/s/$func_parameter_value_old/$func_parameter_value/g' $script_conf
+  fi
+
+}
+
+# 初始化配置文件，写入内容
+function check_script_conf_init() {
+  # logical
+  fill_value_script_conf "scp_already_num" "1"
+  fill_value_script_conf "scp_current_num" "2"
+}
+
+# 检测是否存在配置文件，不存在就创建，如果存在，则不做进一步的校验。
+# 后面，进一步的校验可以包含配置文件中的参数与内容的校验，如果为空，则异常，否则，通过。该方法，在后面的版本中加强
+# 脚本级【script_conf】配置文件，只会存放在脚本运行的机器上，并且和脚本位于同一目录路径之内
+# 在当前的场景中，脚本只在节点一运行
+# 该函数的正确运行依赖于定义的变量：script_conf
+function check_script_conf_is_alive() {
+  # logical
+
+  #判断文件是否存在
+  if [ -f $script_conf ]
+  then
+    echo "Configure file [$script_conf] is exist."
+  else
+    echo "Configure file [$script_conf] [is not] exist."
+
+    # 如果不存在，就立刻创建
+    echo "Configure file [$script_conf] --> create it"
+    touch $script_conf
+
+    # 创建完成后，立即初始化
+    check_script_conf_init
+  fi
+
+  echo ""
+}
+
 # ------------
 # running area
 # ------------
 
 # begin
 say_begin_end "begin"
+
+# 脚本运行后，立即检查是否存在配置文件
+# 在后面，确认脚本是否要开始执行后续逻辑都需要依赖：
+# 1. 配置文件
+# 2. 已传队列 与 待传队列 的比较结果
+# 所以，脚本级配置文件，必须最优先处理
+# FUNCTION: check_script_conf_is_alive --> test
+show_banner "FUNC: check_script_conf_is_alive --> test"
+check_script_conf_is_alive
+
+# 在上面创建了配置文件后，开始向其中灌值
+# FUNCTION: check_script_conf_init --> test
+show_banner "FUNC: check_script_conf_init --> test"
+check_script_conf_init
 
 # FUNCTION: do_sql --> test
 show_banner "FUNC: do_sql --> test"
