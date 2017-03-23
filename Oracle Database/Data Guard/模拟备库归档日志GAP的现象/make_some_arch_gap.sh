@@ -1,5 +1,6 @@
 
 # make_some_archive_log_gap.sh
+#代码还没有写完，目前只写了一个需要自动的刷日志切换的方法
 
 archive_log_dir="/u01/app/oracle/product/11.2.0/dbhome_1/dbs"
 
