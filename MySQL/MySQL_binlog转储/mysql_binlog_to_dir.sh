@@ -140,7 +140,8 @@ function get_mysql_current_binlog_file() {
 # 获得当前BINLOG的数字信息
 function get_mysql_current_binlog_file_number() {
   # logical
-  func_result=`echo $str_mysql_binlog | cut -d'.' -f2 | rev  | cut -d'0' -f1 | rev`
+  #func_result=`echo $str_mysql_binlog | cut -d'.' -f2 | rev  | cut -d'0' -f1 | rev`
+  func_result=`echo $str_mysql_binlog | cut -d'.' -f2 | sed 's/^0\+//'`
 
   # throw out
   echo $func_result

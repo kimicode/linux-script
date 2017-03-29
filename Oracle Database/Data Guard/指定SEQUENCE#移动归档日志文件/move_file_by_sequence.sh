@@ -1,7 +1,7 @@
 # file: move_file_by_sequence.sh
 
 str_search="$1"
-source_dir="/u01/app/oracle/product/11.2.0/dbhome_1/dbs/arch"
+source_dir="/u01/app/oracle/dg_stdbylog"
 target_dir="/home/oracle/arch_log_dup"
 
 echo "search string is: [$str_search]"
