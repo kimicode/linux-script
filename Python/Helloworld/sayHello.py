@@ -32,3 +32,5 @@ n_b="1683-212-008"
 print("Number a --> "+str(n_a.find(search))+" and "+str(n_a.find(search)+len(search)))
 print("Number b --> "+str(n_b.find(search))+" and "+str(n_b.find(search)+len(search)))
 
+# -----------------------------
+
