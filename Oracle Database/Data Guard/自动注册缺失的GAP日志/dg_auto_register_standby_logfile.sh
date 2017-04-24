@@ -12,13 +12,13 @@
 #ps -ef | grep do
 
 # variable
-file_alert="/oracle/ERN/saptrace/diag/rdbms/standby1/ERN/trace/alert_ERN.log"
+file_alert="/oracle/NXP/saptrace/diag/rdbms/standby1/NXP/trace/alert_NXP.log"
 current_gap_sequence=`cat $file_alert | grep "Fetching gap sequence in " | tail -n 1`
 
 # 日志文件
-log_file="/oracle/ERN/dg_auto_register_standby_logfile.log"
-not_exsist_file="/oracle/ERN/dg_auto_register_standby_logfile_not_exsist.log"
-sequence_status_file="/oracle/ERN/dg_auto_register_standby_logfile_gap_status.log"
+log_file="/oracle/NXP/dg_auto_register_standby_logfile.log"
+not_exsist_file="/oracle/NXP/dg_auto_register_standby_logfile_not_exsist.log"
+sequence_status_file="/oracle/NXP/dg_auto_register_standby_logfile_gap_status.log"
 
 sequence_area=`cat $file_alert | grep "Fetching gap sequence in " | tail -n 1 | rev | cut -d'e' -f1 | rev`
 sequence_area_begin=`cat $file_alert | grep "Fetching gap sequence in " | tail -n 1 | rev | cut -d'e' -f1 | rev | cut -d'-' -f1 | cut -d' ' -f2`
@@ -26,7 +26,7 @@ sequence_area_end=`cat $file_alert | grep "Fetching gap sequence in " | tail -n 
 
 thread_number=`cat $file_alert | grep "Fetching gap sequence in " | tail -n 1 | rev | cut -d'e' -f4 | cut -d',' -f2 | cut -d'd' -f1 | cut -d' ' -f1`
 
-standby_logfile_dir="/oracle/ERN/oraarch/ERNarch"
+standby_logfile_dir="/oracle/NXP/oraarch/NXParch"
 
 # About loop
 # where is start
@@ -34,10 +34,26 @@ loop_cursor_1=$sequence_area_begin
 
 # where is end
 #str_loop_stop="34"
-str_loop_stop="1076415"
+#str_loop_stop="1076415"
+str_loop_stop="274999"
 
 # for loop
-#standby_log_file_like_str="$standby_logfile_dir/ERNarch1_"$sequence_area_begin"_838089898.dbf"
+#standby_log_file_like_str="$standby_logfile_dir/NXParch1_"$sequence_area_begin"_838089898.dbf"
+
+# function
+
+# 清理 日志
+echo "## clean log: $not_exsist_file"
+echo "" > $not_exsist_file
+
+echo "## clean log: $sequence_status_file"
+echo "" > $sequence_status_file
+
+# display
+  #echo "Current scn is: $current_gap_sequence"
+
+# for loop
+#standby_log_file_like_str="$standby_logfile_dir/NXParch1_"$sequence_area_begin"_838089898.dbf"
 
 # function
 
@@ -92,10 +108,10 @@ do
   echo "====================="
 
   # variable
-  # tail -f /oracle/ERN/saptrace/diag/rdbms/standby1/ERN/trace/alert_ERN.log | grep "gap sequence"
+  # tail -f /oracle/NXP/saptrace/diag/rdbms/standby1/NXP/trace/alert_NXP.log | grep "gap sequence"
 
-  standby_log_file_like_str_ahead_Instance="$standby_logfile_dir/ERNarch"$thread_number"_"$loop_cursor_1"_705619077.dbf"
-  standby_log_file_like_str_ahead_standby="$standby_logfile_dir/standby1_"$thread_number"_"$loop_cursor_1"_705619077.arch"
+  standby_log_file_like_str_ahead_Instance="$standby_logfile_dir/NXParch"$thread_number"_"$loop_cursor_1"_838089898.dbf"
+  standby_log_file_like_str_ahead_standby="$standby_logfile_dir/standby1_"$thread_number"_"$loop_cursor_1"_838089898.arch"
 
   # 文件是否存在
   # 0存在
