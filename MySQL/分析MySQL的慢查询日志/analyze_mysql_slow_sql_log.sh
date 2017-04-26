@@ -16,11 +16,24 @@ mysql_port='3306'
 # init sql:
 # create database adamhuan;
 # create table adamhuan.slow_sql_details(id int(43) not null auto_increment,count longtext,time longtext,lock_time longtext,row_sent longtext,row_examined longtext,database_name longtext,users longtext,query_sample longtext,primary key(id));
+# create table adamhuan.slow_sql_details(id int(43) not null auto_increment,count longtext,time longtext,lock_time longtext,row_sent longtext,row_examined longtext,database_name longtext,users longtext,query_sample longtext,primary key(id)) engine=InnoDB default charset=utf8;
 
 schemal_name="adamhuan"
 table_name="slow_sql_details"
 
 full_table_address=$schemal_name"."$table_name
+
+# About SQL Data
+
+sql_file="do_sql.sql"
+#data_count=""
+#data_time=""
+#data_lock_time=""
+#data_rows_sent=""
+#data_rows_examined=""
+#data_database=""
+#data_users=""
+#data_query_sample=""
 
 # File content
 # 需要分析的目标日志的绝对地址
@@ -248,13 +261,17 @@ function get_block_by_first_index_until_space(){
   sed_string=$begin_index","$end_index_me"p"
 
   echo ""
-  echo "--> special block section sed string is: [$sed_string]"
+  #echo "--> special block section sed string is: [$sed_string]"
   echo ""
 
   #echo "@@@@@@@@@@@@@@@@@@@@"
 
   # 输出内容
+  #the_data=`echo "$block_me" | sed -n "$sed_string"`
   echo "$block_me" | sed -n "$sed_string"
+
+  # 存入需要的变量
+  #variable_if_null_then func_str_user "" $mysql_user
 
   #echo "@@@@@@@@@@@@@@@@@@@@"
   #echo ""
@@ -263,7 +280,7 @@ function get_block_by_first_index_until_space(){
 function fill_value_to_variable(){
   func_block_data="$1"
   func_search_string="$2"
-  func_variable="$3"
+  eval func_variable="$3"
 
   temp_value=""
 
@@ -275,7 +292,7 @@ function fill_value_to_variable(){
   block_space_line_list=`echo "$func_block_data" | grep -n "^$" | awk -F':' '{printf $1" " }'`
 
   # display
-  echo "Current Searching String is: [$func_search_string]"
+  #echo "Current Searching String is: [$func_search_string]"
 
   if [ "$func_search_string" == "Time" ]
   then
@@ -286,35 +303,47 @@ function fill_value_to_variable(){
     func_fill_begin_index=`echo "$func_block_data" | cat -n | grep "$func_search_string" | head -n 1 | awk '{print $1}'`
   fi
 
-  echo "temp_value is:"
-  echo $temp_value
+  #echo "temp_value is:"
+  #echo $temp_value
 
   if [[ ("$temp_value" == " ") && ("$func_search_string" == "Users") ]]
   then
-    echo "temp_value is EMPTY, and current searching is [USERS]"
-    echo "Line space is on: [$block_space_line_list]"
-    echo "current index is: [$func_fill_begin_index]"
-    echo "@@@@@@@@@@@@@@@@@@@@"
-    get_block_by_first_index_until_space "$func_block_data" "$func_fill_begin_index" "$block_space_line_list"
-    echo "@@@@@@@@@@@@@@@@@@@@"
+    #echo "temp_value is EMPTY, and current searching is [USERS]"
+    #echo "Line space is on: [$block_space_line_list]"
+    #echo "current index is: [$func_fill_begin_index]"
+    #echo "@@@@@@@@@@@@@@@@@@@@"
+    temp_value=`get_block_by_first_index_until_space "$func_block_data" "$func_fill_begin_index" "$block_space_line_list"`
+    #echo "@@@@@@@@@@@@@@@@@@@@"
     echo ""
 
   fi
 
   if [[ ("$temp_value" == "") && ("$func_search_string" == "Query sample") ]]
   then
-    echo "temp_value is EMPTY, and current searching is [Query sample]"
-    echo "Line space is on: [$block_space_line_list]"
-    echo "current index is: [$func_fill_begin_index]"
-    echo "@@@@@@@@@@@@@@@@@@@@"
-    get_block_by_first_index_until_space "$func_block_data" "$func_fill_begin_index" "$block_space_line_list"
-    echo "@@@@@@@@@@@@@@@@@@@@"
+    #echo "temp_value is EMPTY, and current searching is [Query sample]"
+    #echo "Line space is on: [$block_space_line_list]"
+    #echo "current index is: [$func_fill_begin_index]"
+    #echo "@@@@@@@@@@@@@@@@@@@@"
+    temp_value=`get_block_by_first_index_until_space "$func_block_data" "$func_fill_begin_index" "$block_space_line_list"`
+    #echo "@@@@@@@@@@@@@@@@@@@@"
     echo ""
 
   fi
 
-  echo "==========================="
-  echo ""
+  # 将得到的值，放入变量之中
+
+  # 版本零
+  echo "$temp_value"
+
+  # 版本一
+  #eval variable_if_null_then "`eval echo '$'$func_variable`" "" "$temp_value"
+
+  # 版本二
+  #eval $func_variable=\"$temp_value\"
+  #eval $func_variable=\"`echo "$temp_value"`\"
+
+  #echo "==========================="
+  #echo ""
 
 }
 
@@ -413,8 +442,43 @@ function analyze_block_data_1() {
   #fill_value_to_variable "$func_block_data" "Users" "data_users"
   #fill_value_to_variable "$func_block_data" "Query sample" "data_query_sample"
 
-  fill_value_to_variable "$func_block_data" "Users" "data_users"
-  fill_value_to_variable "$func_block_data" "Query sample" "data_query_sample"
+  # 第三版本
+  #fill_value_to_variable "$func_block_data" "Users" "data_users"
+  #fill_value_to_variable "$func_block_data" "Query sample" "data_query_sample"
+
+  # 第四版本
+  data_count=`fill_value_to_variable "$func_block_data" "Count" "data_count"`
+  data_time=`fill_value_to_variable "$func_block_data" "Time" "data_time"`
+  data_lock_time=`fill_value_to_variable "$func_block_data" "Lock Time (s)" "data_lock_time"`
+  data_rows_sent=`fill_value_to_variable "$func_block_data" "Rows sent" "data_rows_sent"`
+  data_rows_examined=`fill_value_to_variable "$func_block_data" "Rows examined" "data_rows_examined"`
+  data_database=`fill_value_to_variable "$func_block_data" "Database" "data_database"`
+  data_users=`fill_value_to_variable "$func_block_data" "Users" "data_users"`
+  data_query_sample=`fill_value_to_variable "$func_block_data" "Query sample" "data_query_sample"`
+
+  # display
+  #echo "user is: "
+  #echo "$data_users"
+
+  #echo "Query sample is: "
+  #echo "$data_query_sample"
+
+  sql_command="insert into $full_table_address (count,time,lock_time,row_sent,row_examined,database_name,Users,query_sample) values (\"$data_count\",\"$data_time\",\"$data_lock_time\",\"$data_rows_sent\",\"$data_rows_examined\",\"$database_name\",\"$data_users\",\"$data_query_sample\");"
+
+  echo "$sql_command" >> $sql_file
+
+  #echo "SQL Command is:"
+  #echo "%%%%%%%%%%%%%%%%%%%%%%%%%"
+  #echo "$sql_command"
+  #echo "%%%%%%%%%%%%%%%%%%%%%%%%%"
+
+  echo "Do SQL insert，..."
+
+  #do_sql localhost "source $sql_file"
+  do_sql localhost "set names gbk; $sql_command"
+  #do_sql localhost "insert into $full_table_address (users) values (\"Hello wolrd\")"
+
+  echo ""
 
 }
 
@@ -522,12 +586,12 @@ function catch_big_loop(){
 # running and display
 
 # ---- test
-do_sql localhost "show databases"
-near_space_line_number " " 8
-near_space_line_number "Query sample" 45
+#do_sql localhost "show databases"
+#near_space_line_number " " 8
+#near_space_line_number "Query sample" 45
 
 catch_big_loop "__"
 
-do_sql localhost "desc $full_table_address"
+#do_sql localhost "desc $full_table_address"
 
 # finished
